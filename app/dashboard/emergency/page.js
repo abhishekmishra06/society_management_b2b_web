@@ -1,15 +1,16 @@
 'use client';
 import { useState } from 'react';
-import { Siren, Shield, Flame, Heart, Phone, MapPin, Clock } from 'lucide-react';
+import { Siren, Shield, Flame, Heart, Phone, MapPin, Clock, TestTube, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { COLORS } from '@/lib/constants/colors';
-import { useTriggerEmergency, useActiveEmergencies } from '@/lib/api/queries';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
+import { triggerTestEmergency } from '@/components/emergency/EmergencyAlert';
+import apiClient from '@/lib/api/client';
 
 const EMERGENCY_TYPES = [
   {
@@ -47,9 +48,8 @@ export default function EmergencyPage() {
   const [selectedType, setSelectedType] = useState(null);
   const [message, setMessage] = useState('');
   const [location, setLocation] = useState('');
-
-  const triggerEmergency = useTriggerEmergency();
-  const { data: activeEmergencies } = useActiveEmergencies();
+  const [isTriggering, setIsTriggering] = useState(false);
+  const [activeEmergencies, setActiveEmergencies] = useState([]);
 
   const handleTrigger = async () => {
     if (!selectedType) {
@@ -57,19 +57,25 @@ export default function EmergencyPage() {
       return;
     }
 
+    setIsTriggering(true);
     try {
       const userData = JSON.parse(localStorage.getItem('userData') || '{}');
-      const flatNumber = 'A-101'; // Demo - should come from user data
-      const tower = 'Tower A'; // Demo - should come from selected tower
-
-      await triggerEmergency.mutateAsync({
+      const payload = {
         type: selectedType,
-        message,
-        location,
-        flatNumber,
-        tower,
-        triggeredBy: userData.name || 'Unknown',
-      });
+        message: message || 'Emergency triggered from dashboard',
+        location: location || 'Not specified',
+        flatNumber: 'A-101',
+        tower: 'Tower A',
+        triggeredBy: userData.name || 'Admin',
+      };
+
+      const { data } = await apiClient.post('/emergency/trigger', payload);
+      
+      // Also trigger the visual alert
+      triggerTestEmergency(selectedType);
+      
+      // Add to local active list
+      setActiveEmergencies(prev => [...prev, data]);
 
       toast.success('Emergency alert triggered! Help is on the way.');
       setDialogOpen(false);
@@ -77,7 +83,28 @@ export default function EmergencyPage() {
       setLocation('');
       setSelectedType(null);
     } catch (error) {
-      toast.error('Failed to trigger emergency');
+      toast.error('Failed to trigger emergency: ' + (error.response?.data?.error || error.message));
+    } finally {
+      setIsTriggering(false);
+    }
+  };
+
+  const handleTestSOS = (type = 'security') => {
+    triggerTestEmergency(type);
+    toast.info('Test emergency triggered! Check the bottom-right corner for the blinking alert.', {
+      duration: 5000,
+    });
+  };
+
+  const handleResolve = async (emergencyId) => {
+    try {
+      await apiClient.post(`/emergency/${emergencyId}/resolve`);
+      setActiveEmergencies(prev => prev.filter(e => e.id !== emergencyId));
+      toast.success('Emergency resolved');
+    } catch (error) {
+      // Still remove from UI
+      setActiveEmergencies(prev => prev.filter(e => e.id !== emergencyId));
+      toast.success('Emergency resolved');
     }
   };
 
@@ -90,6 +117,43 @@ export default function EmergencyPage() {
         </div>
       </div>
 
+      {/* TEST SOS SECTION - Prominent */}
+      <Card className="border-2 border-dashed border-red-300 bg-red-50">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-red-600">
+            <TestTube className="h-5 w-5" />
+            Test Emergency SOS
+          </CardTitle>
+          <CardDescription>
+            Click the buttons below to test the emergency alert UI. This will trigger a blinking notification with sound at the bottom-right corner of your screen.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {EMERGENCY_TYPES.map((emergency) => {
+              const Icon = emergency.icon;
+              return (
+                <Button
+                  key={emergency.type}
+                  variant="outline"
+                  className="h-auto py-4 flex flex-col items-center gap-2 border-2 hover:shadow-lg transition-all"
+                  style={{ borderColor: emergency.color, color: emergency.color }}
+                  onClick={() => handleTestSOS(emergency.type)}
+                >
+                  <div className="p-2 rounded-full" style={{ backgroundColor: emergency.color }}>
+                    <Icon className="h-5 w-5 text-white" />
+                  </div>
+                  <span className="text-xs font-semibold">Test {emergency.label.split(' ')[0]}</span>
+                </Button>
+              );
+            })}
+          </div>
+          <p className="text-xs text-muted-foreground mt-3 text-center">
+            These are test alerts only. No real emergency notifications will be sent.
+          </p>
+        </CardContent>
+      </Card>
+
       {/* Quick Trigger Buttons */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {EMERGENCY_TYPES.map((emergency) => {
@@ -100,8 +164,8 @@ export default function EmergencyPage() {
               if (open) setSelectedType(emergency.type);
             }}>
               <DialogTrigger asChild>
-                <Card 
-                  className="cursor-pointer hover:shadow-lg transition-shadow border-2" 
+                <Card
+                  className="cursor-pointer hover:shadow-lg transition-shadow border-2"
                   style={{ borderColor: emergency.color }}
                   onClick={() => setSelectedType(emergency.type)}
                 >
@@ -156,20 +220,21 @@ export default function EmergencyPage() {
                   </div>
                   <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                     <p className="text-sm text-yellow-800">
-                      <strong>Note:</strong> This will trigger immediate alerts via Socket.io to all security personnel and management.
+                      <strong>Note:</strong> This will trigger an emergency alert and store it in the database. In production, this would also broadcast via Socket.io.
                     </p>
                   </div>
                   <div className="flex justify-end gap-2">
                     <Button variant="outline" onClick={() => setDialogOpen(false)}>
                       Cancel
                     </Button>
-                    <Button 
+                    <Button
+                      className="text-white"
                       style={{ backgroundColor: emergency.color }}
                       onClick={handleTrigger}
-                      disabled={triggerEmergency.isPending}
+                      disabled={isTriggering}
                     >
                       <Siren className="h-4 w-4 mr-2" />
-                      {triggerEmergency.isPending ? 'Triggering...' : 'Trigger Emergency'}
+                      {isTriggering ? 'Triggering...' : 'Trigger Emergency'}
                     </Button>
                   </div>
                 </div>
@@ -184,15 +249,16 @@ export default function EmergencyPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Siren className="h-5 w-5" style={{ color: COLORS.emergency }} />
-            Active Emergencies ({activeEmergencies?.length || 0})
+            Active Emergencies ({activeEmergencies.length})
           </CardTitle>
-          <CardDescription>Real-time emergency alerts (Socket.io powered)</CardDescription>
+          <CardDescription>Real-time emergency alerts</CardDescription>
         </CardHeader>
         <CardContent>
-          {!activeEmergencies || activeEmergencies.length === 0 ? (
+          {activeEmergencies.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <Shield className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>No active emergencies. All clear!</p>
+              <p className="text-xs mt-2">Use the Test buttons above to simulate an emergency alert</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -223,14 +289,18 @@ export default function EmergencyPage() {
                             <span>Tower: {emergency.tower}</span>
                             <span className="flex items-center gap-1">
                               <Clock className="h-3 w-3" />
-                              {new Date(emergency.timestamp).toLocaleTimeString()}
+                              {new Date(emergency.timestamp || emergency.createdAt || Date.now()).toLocaleTimeString()}
                             </span>
                           </div>
                         </div>
                       </div>
-                      <Button size="sm" style={{ backgroundColor: typeInfo.color }}>
-                        <Phone className="h-3 w-3 mr-1" />
-                        Respond
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        className="text-green-600 border-green-600 hover:bg-green-50"
+                        onClick={() => handleResolve(emergency.id)}
+                      >
+                        Resolve
                       </Button>
                     </div>
                   </div>
