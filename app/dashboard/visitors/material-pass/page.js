@@ -20,7 +20,21 @@ export default function MaterialExitPassPage() {
   };
 
   const handleDownloadPDF = (pass) => {
-    toast.success(`Downloading PDF for ${pass.id}`);
+    try {
+      generateMaterialExitPassPDF({
+        id: pass.id,
+        flatNumber: pass.flatNumber,
+        residentName: 'Resident',
+        materialDescription: pass.items,
+        quantity: '1',
+        carrierName: 'N/A',
+        carrierContact: 'N/A',
+        date: pass.exitDate || pass.requestDate,
+      });
+      toast.success(`Material exit pass ${pass.id} downloaded as PDF!`);
+    } catch (error) {
+      toast.error('PDF generation failed: ' + error.message);
+    }
   };
 
   return (
