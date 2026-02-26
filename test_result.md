@@ -162,7 +162,11 @@ backend:
     file: "app/api/[[...path]]/route.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "testing"
+          comment: "✅ VERIFIED: POST /api/complaints creates complaint with ID 770c7230-2763-496b-b641-541b0579fa9f, GET /api/complaints returns array of 2 complaints including created one. Full CRUD workflow tested successfully."
 
   - task: "Announcement CRUD API"
     implemented: true
