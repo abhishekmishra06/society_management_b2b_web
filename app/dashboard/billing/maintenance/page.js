@@ -162,6 +162,7 @@ export default function MaintenanceBillingPage() {
                   <TableHead>Due Date</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Generated</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
