@@ -52,6 +52,20 @@ export default function MaintenanceBillingPage() {
           <h1 className="text-3xl font-bold" style={{ color: COLORS.primary }}>Maintenance Billing</h1>
           <p className="text-muted-foreground mt-1">Create and manage monthly maintenance bills</p>
         </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => {
+            exportCSV(bills || [], [
+              { key: 'flatNumber', label: 'Flat' },
+              { key: 'month', label: 'Month' },
+              { key: 'amount', label: 'Amount' },
+              { key: 'dueDate', label: 'Due Date' },
+              { key: 'status', label: 'Status' },
+            ], 'MaintenanceBills');
+            toast.success('Exported to CSV!');
+          }}>
+            <Download className="h-4 w-4 mr-2" />
+            Export
+          </Button>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
             <Button style={{ backgroundColor: COLORS.primary }}>
