@@ -343,11 +343,14 @@ metadata:
     file: "app/api/[[...path]]/route.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
         - working: true
           agent: "main"
           comment: "GET/POST /vendors/payments endpoints exist. Frontend now uses real API data instead of dummy data, with Add Payment dialog, Pay Now, and PDF receipt download."
+        - working: true
+          agent: "testing"
+          comment: "✅ VERIFIED: GET /vendors/payments returns array (0 initially), POST /vendors/payments creates payment with ID 29605e06-6206-4e04-af34-4120ba51d000, full CRUD workflow tested successfully. Amount 25000, vendor name Test Cleaning Co, payment method Bank Transfer verified."
 
   - task: "Facility Booking CRUD API"
     implemented: true
