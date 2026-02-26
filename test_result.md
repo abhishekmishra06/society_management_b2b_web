@@ -126,7 +126,11 @@ backend:
     file: "app/api/[[...path]]/route.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "testing"
+          comment: "✅ VERIFIED: POST /api/staff creates staff with ID b18db3e2-cbd7-4acb-9516-d8defd1607d8, GET /api/staff returns array of 2 staff members including created one. Full CRUD workflow tested successfully."
 
   - task: "Vendor CRUD API"
     implemented: true
