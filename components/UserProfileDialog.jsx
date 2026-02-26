@@ -16,6 +16,8 @@ export default function UserProfileDialog({ open, onOpenChange }) {
   const [formData, setFormData] = useState({ name: '', email: '', phone: '' });
   const [loading, setLoading] = useState(false);
 
+  const [permissions, setPermissions] = useState([]);
+
   useEffect(() => {
     if (open) {
       const stored = localStorage.getItem('userData');
@@ -23,6 +25,10 @@ export default function UserProfileDialog({ open, onOpenChange }) {
         const data = JSON.parse(stored);
         setUserData(data);
         setFormData({ name: data.name || '', email: data.email || '', phone: data.phone || '' });
+      }
+      const perms = localStorage.getItem('userPermissions');
+      if (perms) {
+        try { setPermissions(JSON.parse(perms)); } catch (e) {}
       }
     }
   }, [open]);
