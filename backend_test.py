@@ -1,698 +1,488 @@
 #!/usr/bin/env python3
+"""
+Backend API Testing for Society Management System
+Tests newly added API endpoints: Dashboard Stats, User Profile, Share Access/Create User, and Login improvements
+"""
 
 import requests
 import json
-from datetime import datetime
 import sys
+import time
+from typing import Dict, Any
 
-# Base URL for the API
+# Configuration
 BASE_URL = "https://community-hub-525.preview.emergentagent.com/api"
+HEADERS = {
+    "Content-Type": "application/json",
+    "Accept": "application/json"
+}
 
-def make_request(method, endpoint, data=None, headers=None):
-    """Make HTTP request with error handling"""
-    url = f"{BASE_URL}{endpoint}"
-    default_headers = {'Content-Type': 'application/json'}
-    if headers:
-        default_headers.update(headers)
-    
-    try:
-        if method == 'GET':
-            response = requests.get(url, headers=default_headers, timeout=30)
-        elif method == 'POST':
-            response = requests.post(url, json=data, headers=default_headers, timeout=30)
-        elif method == 'PUT':
-            response = requests.put(url, json=data, headers=default_headers, timeout=30)
-        elif method == 'DELETE':
-            response = requests.delete(url, headers=default_headers, timeout=30)
+class BackendTester:
+    def __init__(self):
+        self.session = requests.Session()
+        self.session.headers.update(HEADERS)
+        self.auth_token = None
+        self.test_results = []
         
-        return response
-    except requests.exceptions.Timeout:
-        print(f"❌ TIMEOUT: {method} {endpoint} - Request timed out")
-        return None
-    except requests.exceptions.ConnectionError:
-        print(f"❌ CONNECTION ERROR: {method} {endpoint} - Could not connect")
-        return None
-    except Exception as e:
-        print(f"❌ ERROR: {method} {endpoint} - {str(e)}")
-        return None
+    def log_result(self, test_name: str, success: bool, message: str, response_data: Any = None):
+        """Log test result with details"""
+        status = "✅ PASS" if success else "❌ FAIL"
+        print(f"{status}: {test_name}")
+        print(f"   {message}")
+        if response_data and isinstance(response_data, dict):
+            print(f"   Response: {json.dumps(response_data, indent=2, default=str)[:200]}...")
+        print()
+        
+        self.test_results.append({
+            "test": test_name,
+            "success": success, 
+            "message": message,
+            "response": response_data
+        })
 
-def test_vendor_contracts():
-    """Test Vendor Contracts CRUD API"""
-    print("\n=== Testing Vendor Contracts API ===")
-    
-    try:
-        # Test GET /vendors/contracts - List all contracts
-        print("1. Testing GET /vendors/contracts...")
-        response = make_request('GET', '/vendors/contracts')
-        if response and response.status_code == 200:
-            contracts = response.json()
-            print(f"✅ GET /vendors/contracts successful - returned {len(contracts)} contracts")
-            if not isinstance(contracts, list):
-                print(f"⚠️  Expected array but got {type(contracts)}")
-        else:
-            print(f"❌ GET /vendors/contracts failed - Status: {response.status_code if response else 'No Response'}")
-            return False
-        
-        # Test POST /vendors/contracts - Create new contract
-        print("2. Testing POST /vendors/contracts...")
-        contract_data = {
-            "vendorName": "Test Cleaning Co",
-            "serviceType": "Housekeeping", 
-            "startDate": "2026-01-01",
-            "expiryDate": "2026-12-31",
-            "amount": 50000,
-            "terms": "Monthly service"
-        }
-        
-        response = make_request('POST', '/vendors/contracts', contract_data)
-        if response and response.status_code == 200:
-            new_contract = response.json()
-            print(f"✅ POST /vendors/contracts successful - Created contract with ID: {new_contract.get('id', 'No ID')}")
+    def test_login_admin(self) -> bool:
+        """Test login with admin credentials"""
+        try:
+            url = f"{BASE_URL}/auth/login"
+            payload = {"userId": "admin001", "password": "admin123"}
             
-            # Verify contract has required fields
-            if 'id' not in new_contract:
-                print("⚠️  Created contract missing 'id' field")
-            if new_contract.get('vendorName') != contract_data['vendorName']:
-                print("⚠️  Vendor name mismatch")
-                
-            # Test GET again to verify contract was added
-            print("3. Verifying contract was added...")
-            response = make_request('GET', '/vendors/contracts')
-            if response and response.status_code == 200:
-                updated_contracts = response.json()
-                print(f"✅ Verification successful - now {len(updated_contracts)} contracts")
-                
-                # Check if our contract exists
-                found = any(c.get('id') == new_contract.get('id') for c in updated_contracts)
-                if found:
-                    print("✅ Created contract found in list")
+            print(f"Testing: POST {url}")
+            print(f"Payload: {json.dumps(payload)}")
+            
+            response = self.session.post(url, json=payload)
+            
+            if response.status_code == 200:
+                data = response.json()
+                if "token" in data and "user" in data:
+                    self.auth_token = data["token"]
+                    self.session.headers.update({"Authorization": f"Bearer {self.auth_token}"})
+                    self.log_result(
+                        "Admin Login",
+                        True,
+                        f"Login successful, got token and user data. User: {data['user']['name']}, Role: {data['user']['role']}",
+                        data
+                    )
+                    return True
                 else:
-                    print("⚠️  Created contract not found in list")
+                    self.log_result("Admin Login", False, f"Missing token or user in response: {data}")
+                    return False
             else:
-                print("❌ Failed to verify contract creation")
-                
-        else:
-            print(f"❌ POST /vendors/contracts failed - Status: {response.status_code if response else 'No Response'}")
-            if response:
-                print(f"Response: {response.text}")
-            return False
-            
-        return True
-        
-    except Exception as e:
-        print(f"❌ Exception in vendor contracts test: {str(e)}")
-        return False
-
-def test_vendor_payments():
-    """Test Vendor Payments CRUD API"""
-    print("\n=== Testing Vendor Payments API ===")
-    
-    try:
-        # Test GET /vendors/payments - List all payments
-        print("1. Testing GET /vendors/payments...")
-        response = make_request('GET', '/vendors/payments')
-        if response and response.status_code == 200:
-            payments = response.json()
-            print(f"✅ GET /vendors/payments successful - returned {len(payments)} payments")
-            if not isinstance(payments, list):
-                print(f"⚠️  Expected array but got {type(payments)}")
-        else:
-            print(f"❌ GET /vendors/payments failed - Status: {response.status_code if response else 'No Response'}")
-            return False
-        
-        # Test POST /vendors/payments - Create new payment
-        print("2. Testing POST /vendors/payments...")
-        payment_data = {
-            "vendorName": "Test Cleaning Co",
-            "serviceType": "Housekeeping",
-            "amount": 25000,
-            "invoiceNumber": "INV-2026-TEST",
-            "paymentMethod": "Bank Transfer",
-            "status": "completed"
-        }
-        
-        response = make_request('POST', '/vendors/payments', payment_data)
-        if response and response.status_code == 200:
-            new_payment = response.json()
-            print(f"✅ POST /vendors/payments successful - Created payment with ID: {new_payment.get('id', 'No ID')}")
-            
-            # Verify payment has required fields
-            if 'id' not in new_payment:
-                print("⚠️  Created payment missing 'id' field")
-            if new_payment.get('vendorName') != payment_data['vendorName']:
-                print("⚠️  Vendor name mismatch")
-            if new_payment.get('amount') != payment_data['amount']:
-                print("⚠️  Amount mismatch")
-                
-            # Test GET again to verify payment was added
-            print("3. Verifying payment was added...")
-            response = make_request('GET', '/vendors/payments')
-            if response and response.status_code == 200:
-                updated_payments = response.json()
-                print(f"✅ Verification successful - now {len(updated_payments)} payments")
-                
-                # Check if our payment exists
-                found = any(p.get('id') == new_payment.get('id') for p in updated_payments)
-                if found:
-                    print("✅ Created payment found in list")
-                else:
-                    print("⚠️  Created payment not found in list")
-            else:
-                print("❌ Failed to verify payment creation")
-                
-        else:
-            print(f"❌ POST /vendors/payments failed - Status: {response.status_code if response else 'No Response'}")
-            if response:
-                print(f"Response: {response.text}")
-            return False
-            
-        return True
-        
-    except Exception as e:
-        print(f"❌ Exception in vendor payments test: {str(e)}")
-        return False
-
-def test_facilities():
-    """Test Facilities and Facility Bookings CRUD API"""
-    print("\n=== Testing Facilities API ===")
-    
-    try:
-        # Test GET /facilities - List all facilities
-        print("1. Testing GET /facilities...")
-        response = make_request('GET', '/facilities')
-        if response and response.status_code == 200:
-            facilities = response.json()
-            print(f"✅ GET /facilities successful - returned {len(facilities)} facilities")
-            if not isinstance(facilities, list):
-                print(f"⚠️  Expected array but got {type(facilities)}")
-        else:
-            print(f"❌ GET /facilities failed - Status: {response.status_code if response else 'No Response'}")
-            return False
-        
-        # Test POST /facilities - Create new facility
-        print("2. Testing POST /facilities...")
-        facility_data = {
-            "name": "Swimming Pool",
-            "description": "Olympic size pool", 
-            "capacity": 30,
-            "rate": 1500
-        }
-        
-        response = make_request('POST', '/facilities', facility_data)
-        if response and response.status_code == 200:
-            new_facility = response.json()
-            print(f"✅ POST /facilities successful - Created facility with ID: {new_facility.get('id', 'No ID')}")
-            
-            # Verify facility has required fields
-            if 'id' not in new_facility:
-                print("⚠️  Created facility missing 'id' field")
-            if new_facility.get('name') != facility_data['name']:
-                print("⚠️  Facility name mismatch")
-                
-            # Test GET again to verify facility was added
-            print("3. Verifying facility was added...")
-            response = make_request('GET', '/facilities')
-            if response and response.status_code == 200:
-                updated_facilities = response.json()
-                print(f"✅ Verification successful - now {len(updated_facilities)} facilities")
-                
-                # Check if our facility exists
-                found = any(f.get('id') == new_facility.get('id') for f in updated_facilities)
-                if found:
-                    print("✅ Created facility found in list")
-                else:
-                    print("⚠️  Created facility not found in list")
-            else:
-                print("❌ Failed to verify facility creation")
-                
-        else:
-            print(f"❌ POST /facilities failed - Status: {response.status_code if response else 'No Response'}")
-            if response:
-                print(f"Response: {response.text}")
-            return False
-            
-    except Exception as e:
-        print(f"❌ Exception in facilities test: {str(e)}")
-        return False
-
-    # Test facility bookings
-    try:
-        # Test GET /facilities/bookings - List all bookings
-        print("4. Testing GET /facilities/bookings...")
-        response = make_request('GET', '/facilities/bookings')
-        if response and response.status_code == 200:
-            bookings = response.json()
-            print(f"✅ GET /facilities/bookings successful - returned {len(bookings)} bookings")
-            if not isinstance(bookings, list):
-                print(f"⚠️  Expected array but got {type(bookings)}")
-        else:
-            print(f"❌ GET /facilities/bookings failed - Status: {response.status_code if response else 'No Response'}")
-            return False
-        
-        # Test POST /facilities/bookings - Create new booking
-        print("5. Testing POST /facilities/bookings...")
-        booking_data = {
-            "facilityName": "Swimming Pool",
-            "flatNumber": "A-101",
-            "bookingDate": "2026-03-15", 
-            "timeSlot": "10:00 AM - 12:00 PM",
-            "purpose": "Birthday party"
-        }
-        
-        response = make_request('POST', '/facilities/bookings', booking_data)
-        if response and response.status_code == 200:
-            new_booking = response.json()
-            print(f"✅ POST /facilities/bookings successful - Created booking with ID: {new_booking.get('id', 'No ID')}")
-            
-            # Verify booking has required fields
-            if 'id' not in new_booking:
-                print("⚠️  Created booking missing 'id' field")
-            if new_booking.get('facilityName') != booking_data['facilityName']:
-                print("⚠️  Facility name mismatch")
-                
-            # Test GET again to verify booking was added
-            print("6. Verifying booking was added...")
-            response = make_request('GET', '/facilities/bookings')
-            if response and response.status_code == 200:
-                updated_bookings = response.json()
-                print(f"✅ Verification successful - now {len(updated_bookings)} bookings")
-                
-                # Check if our booking exists
-                found = any(b.get('id') == new_booking.get('id') for b in updated_bookings)
-                if found:
-                    print("✅ Created booking found in list")
-                else:
-                    print("⚠️  Created booking not found in list")
-            else:
-                print("❌ Failed to verify booking creation")
-                
-        else:
-            print(f"❌ POST /facilities/bookings failed - Status: {response.status_code if response else 'No Response'}")
-            if response:
-                print(f"Response: {response.text}")
-            return False
-            
-        return True
-        
-    except Exception as e:
-        print(f"❌ Exception in facility bookings test: {str(e)}")
-        return False
-
-def test_assets():
-    """Test Assets CRUD API"""
-    print("\n=== Testing Assets API ===")
-    
-    try:
-        # Test GET /assets - List all assets
-        print("1. Testing GET /assets...")
-        response = make_request('GET', '/assets')
-        if response and response.status_code == 200:
-            assets = response.json()
-            print(f"✅ GET /assets successful - returned {len(assets)} assets")
-            if not isinstance(assets, list):
-                print(f"⚠️  Expected array but got {type(assets)}")
-        else:
-            print(f"❌ GET /assets failed - Status: {response.status_code if response else 'No Response'}")
-            return False
-        
-        # Test POST /assets - Create new asset
-        print("2. Testing POST /assets...")
-        asset_data = {
-            "name": "Water Pump",
-            "category": "Equipment",
-            "value": 15000,
-            "condition": "good",
-            "location": "Basement"
-        }
-        
-        response = make_request('POST', '/assets', asset_data)
-        if response and response.status_code == 200:
-            new_asset = response.json()
-            print(f"✅ POST /assets successful - Created asset with ID: {new_asset.get('id', 'No ID')}")
-            
-            # Verify asset has required fields
-            if 'id' not in new_asset:
-                print("⚠️  Created asset missing 'id' field")
-            if new_asset.get('name') != asset_data['name']:
-                print("⚠️  Asset name mismatch")
-            if new_asset.get('value') != asset_data['value']:
-                print("⚠️  Asset value mismatch")
-                
-            # Test GET again to verify asset was added
-            print("3. Verifying asset was added...")
-            response = make_request('GET', '/assets')
-            if response and response.status_code == 200:
-                updated_assets = response.json()
-                print(f"✅ Verification successful - now {len(updated_assets)} assets")
-                
-                # Check if our asset exists
-                found = any(a.get('id') == new_asset.get('id') for a in updated_assets)
-                if found:
-                    print("✅ Created asset found in list")
-                else:
-                    print("⚠️  Created asset not found in list")
-            else:
-                print("❌ Failed to verify asset creation")
-                
-        else:
-            print(f"❌ POST /assets failed - Status: {response.status_code if response else 'No Response'}")
-            if response:
-                print(f"Response: {response.text}")
-            return False
-            
-        return True
-        
-    except Exception as e:
-        print(f"❌ Exception in assets test: {str(e)}")
-        return False
-
-def test_parking():
-    """Test Parking CRUD API"""
-    print("\n=== Testing Parking API ===")
-    
-    try:
-        # Test GET /parking - List all parking slots
-        print("1. Testing GET /parking...")
-        response = make_request('GET', '/parking')
-        if response and response.status_code == 200:
-            parking_slots = response.json()
-            print(f"✅ GET /parking successful - returned {len(parking_slots)} parking slots")
-            if not isinstance(parking_slots, list):
-                print(f"⚠️  Expected array but got {type(parking_slots)}")
-        else:
-            print(f"❌ GET /parking failed - Status: {response.status_code if response else 'No Response'}")
-            return False
-        
-        # Test POST /parking - Create new parking slot
-        print("2. Testing POST /parking...")
-        parking_data = {
-            "slotNumber": "P-001",
-            "type": "car",
-            "status": "available", 
-            "flatNumber": "A-101"
-        }
-        
-        response = make_request('POST', '/parking', parking_data)
-        if response and response.status_code == 200:
-            new_slot = response.json()
-            print(f"✅ POST /parking successful - Created parking slot with ID: {new_slot.get('id', 'No ID')}")
-            
-            # Verify slot has required fields
-            if 'id' not in new_slot:
-                print("⚠️  Created parking slot missing 'id' field")
-            if new_slot.get('slotNumber') != parking_data['slotNumber']:
-                print("⚠️  Slot number mismatch")
-            if new_slot.get('type') != parking_data['type']:
-                print("⚠️  Slot type mismatch")
-                
-            # Test GET again to verify slot was added
-            print("3. Verifying parking slot was added...")
-            response = make_request('GET', '/parking')
-            if response and response.status_code == 200:
-                updated_slots = response.json()
-                print(f"✅ Verification successful - now {len(updated_slots)} parking slots")
-                
-                # Check if our slot exists
-                found = any(s.get('id') == new_slot.get('id') for s in updated_slots)
-                if found:
-                    print("✅ Created parking slot found in list")
-                else:
-                    print("⚠️  Created parking slot not found in list")
-            else:
-                print("❌ Failed to verify parking slot creation")
-                
-        else:
-            print(f"❌ POST /parking failed - Status: {response.status_code if response else 'No Response'}")
-            if response:
-                print(f"Response: {response.text}")
-            return False
-            
-        return True
-        
-    except Exception as e:
-        print(f"❌ Exception in parking test: {str(e)}")
-        return False
-
-def test_parking_put_delete():
-    """Test Parking PUT/DELETE operations"""
-    print("\n=== Testing Parking PUT/DELETE Operations ===")
-    
-    try:
-        # Step 1: Create parking slot
-        print("1. Creating parking slot...")
-        create_data = {
-            "slotNumber": "TEST-P001",
-            "type": "car", 
-            "status": "available",
-            "zone": "Basement 1"
-        }
-        
-        response = make_request('POST', '/parking', create_data)
-        if not response or response.status_code != 200:
-            print("❌ Failed to create parking slot")
-            return False
-            
-        parking_data = response.json()
-        parking_id = parking_data.get('id')
-        print(f"✅ Created parking slot with ID: {parking_id}")
-        
-        # Step 2: Update parking slot with PUT
-        print("2. Testing PUT update...")
-        update_data = {
-            "status": "occupied",
-            "vehicleNumber": "MH-01-XY-9999", 
-            "flatNumber": "B-202"
-        }
-        
-        response = make_request('PUT', f'/parking/{parking_id}', update_data)
-        if not response or response.status_code != 200:
-            print("❌ PUT operation failed")
-            return False
-        print("✅ PUT operation successful")
-        
-        # Step 3: Verify update
-        print("3. Verifying update...")
-        response = make_request('GET', '/parking')
-        if response and response.status_code == 200:
-            all_parking = response.json()
-            updated_slot = next((p for p in all_parking if p.get('id') == parking_id), None)
-            if updated_slot and updated_slot.get('status') == 'occupied':
-                print("✅ Update verified successfully")
-            else:
-                print("❌ Update not reflected")
+                self.log_result("Admin Login", False, f"Status {response.status_code}: {response.text}")
                 return False
-        
-        # Step 4: Delete parking slot
-        print("4. Testing DELETE operation...")
-        response = make_request('DELETE', f'/parking/{parking_id}')
-        if not response or response.status_code != 200:
-            print("❌ DELETE operation failed")
+                
+        except Exception as e:
+            self.log_result("Admin Login", False, f"Exception: {str(e)}")
             return False
-        print("✅ DELETE operation successful")
-        
-        # Step 5: Verify deletion
-        print("5. Verifying deletion...")
-        response = make_request('GET', '/parking')
-        if response and response.status_code == 200:
-            all_parking = response.json()
-            deleted_slot = next((p for p in all_parking if p.get('id') == parking_id), None)
-            if not deleted_slot:
-                print("✅ Deletion verified successfully")
+
+    def test_dashboard_stats(self) -> bool:
+        """Test GET /api/dashboard/stats"""
+        try:
+            url = f"{BASE_URL}/dashboard/stats"
+            print(f"Testing: GET {url}")
+            
+            response = self.session.get(url)
+            
+            if response.status_code == 200:
+                data = response.json()
+                required_fields = [
+                    "residents", "towers", "flats", "vehicles", 
+                    "complaintsThisMonth", "totalBillsAmount"
+                ]
+                
+                missing_fields = [field for field in required_fields if field not in data]
+                
+                if not missing_fields:
+                    self.log_result(
+                        "Dashboard Stats API",
+                        True,
+                        f"All required fields present: residents={data.get('residents')}, towers={data.get('towers')}, " +
+                        f"flats={data.get('flats')}, vehicles={data.get('vehicles')}, " +
+                        f"complaintsThisMonth={data.get('complaintsThisMonth')}, totalBillsAmount={data.get('totalBillsAmount')}",
+                        data
+                    )
+                    return True
+                else:
+                    self.log_result(
+                        "Dashboard Stats API", 
+                        False, 
+                        f"Missing required fields: {missing_fields}",
+                        data
+                    )
+                    return False
+            else:
+                self.log_result("Dashboard Stats API", False, f"Status {response.status_code}: {response.text}")
+                return False
+                
+        except Exception as e:
+            self.log_result("Dashboard Stats API", False, f"Exception: {str(e)}")
+            return False
+
+    def test_user_profile_get(self) -> bool:
+        """Test GET /api/user/profile with auth header"""
+        try:
+            url = f"{BASE_URL}/user/profile"
+            print(f"Testing: GET {url}")
+            print(f"Auth Header: Authorization: Bearer {self.auth_token}")
+            
+            response = self.session.get(url)
+            
+            if response.status_code == 200:
+                data = response.json()
+                required_fields = ["id", "userId", "name", "role"]
+                
+                missing_fields = [field for field in required_fields if field not in data]
+                
+                if not missing_fields:
+                    self.log_result(
+                        "User Profile GET API",
+                        True,
+                        f"Profile retrieved successfully. User: {data.get('name')}, Role: {data.get('role')}, ID: {data.get('userId')}",
+                        data
+                    )
+                    return True
+                else:
+                    self.log_result("User Profile GET API", False, f"Missing fields: {missing_fields}", data)
+                    return False
+            else:
+                self.log_result("User Profile GET API", False, f"Status {response.status_code}: {response.text}")
+                return False
+                
+        except Exception as e:
+            self.log_result("User Profile GET API", False, f"Exception: {str(e)}")
+            return False
+
+    def test_user_profile_update(self) -> bool:
+        """Test PUT /api/user/profile to update profile"""
+        try:
+            url = f"{BASE_URL}/user/profile"
+            payload = {"name": "Admin Updated", "phone": "9999999999"}
+            
+            print(f"Testing: PUT {url}")
+            print(f"Payload: {json.dumps(payload)}")
+            
+            response = self.session.put(url, json=payload)
+            
+            if response.status_code == 200:
+                data = response.json()
+                self.log_result(
+                    "User Profile UPDATE API",
+                    True,
+                    f"Profile updated successfully: {data.get('message')}",
+                    data
+                )
+                
+                # Verify the update by getting profile again
+                get_response = self.session.get(url)
+                if get_response.status_code == 200:
+                    updated_data = get_response.json()
+                    if updated_data.get('name') == 'Admin Updated' and updated_data.get('phone') == '9999999999':
+                        print("   ✅ Update verified - profile data matches expected values")
+                        return True
+                    else:
+                        print(f"   ⚠️  Update verification failed - name: {updated_data.get('name')}, phone: {updated_data.get('phone')}")
+                        return False
                 return True
             else:
-                print("❌ Item still exists after deletion")
+                self.log_result("User Profile UPDATE API", False, f"Status {response.status_code}: {response.text}")
                 return False
                 
-    except Exception as e:
-        print(f"❌ Test failed with error: {e}")
-        return False
+        except Exception as e:
+            self.log_result("User Profile UPDATE API", False, f"Exception: {str(e)}")
+            return False
 
-def test_move_put_delete():
-    """Test Move Requests PUT/DELETE operations"""
-    print("\n=== Testing Move Requests PUT/DELETE Operations ===")
-    
-    try:
-        # Step 1: Create move request
-        print("1. Creating move request...")
-        create_data = {
-            "type": "move_in",
-            "residentName": "Test Resident",
-            "flatNumber": "C-301", 
-            "scheduledDate": "2026-03-15",
-            "scheduledTime": "9:00 AM - 12:00 PM",
-            "vehicleDetails": "Tempo",
-            "contactNumber": "9876543210"
-        }
-        
-        response = make_request('POST', '/move', create_data)
-        if not response or response.status_code != 200:
-            print("❌ Failed to create move request")
-            return False
+    def test_create_user_share_access(self) -> bool:
+        """Test POST /api/users/share-access to create staff user"""
+        try:
+            url = f"{BASE_URL}/users/share-access"
+            payload = {
+                "name": "Guard John",
+                "userId": "guard_john",
+                "password": "guard123",
+                "role": "STAFF",
+                "permissions": ["dashboard", "security"],
+                "linkedEntityId": "test123",
+                "linkedEntityType": "staff"
+            }
             
-        move_data = response.json()
-        move_id = move_data.get('id')
-        print(f"✅ Created move request with ID: {move_id}")
-        
-        # Step 2: Update move request with PUT
-        print("2. Testing PUT update...")
-        update_data = {
-            "status": "approved"
-        }
-        
-        response = make_request('PUT', f'/move/{move_id}', update_data)
-        if not response or response.status_code != 200:
-            print("❌ PUT operation failed")
-            return False
-        print("✅ PUT operation successful")
-        
-        # Step 3: Verify update
-        print("3. Verifying update...")
-        response = make_request('GET', '/move')
-        if response and response.status_code == 200:
-            all_moves = response.json()
-            updated_move = next((m for m in all_moves if m.get('id') == move_id), None)
-            if updated_move and updated_move.get('status') == 'approved':
-                print("✅ Update verified successfully")
+            print(f"Testing: POST {url}")
+            print(f"Payload: {json.dumps(payload, indent=2)}")
+            
+            response = self.session.post(url, json=payload)
+            
+            if response.status_code == 200:
+                data = response.json()
+                required_fields = ["id", "userId", "name", "role", "permissions"]
+                
+                missing_fields = [field for field in required_fields if field not in data]
+                
+                if not missing_fields:
+                    self.log_result(
+                        "Share Access/Create User API", 
+                        True,
+                        f"User created successfully. ID: {data.get('id')}, Name: {data.get('name')}, " +
+                        f"Role: {data.get('role')}, Permissions: {data.get('permissions')}",
+                        data
+                    )
+                    return True
+                else:
+                    self.log_result("Share Access/Create User API", False, f"Missing fields: {missing_fields}", data)
+                    return False
             else:
-                print("❌ Update not reflected")
-                return False
-        
-        # Step 4: Delete move request
-        print("4. Testing DELETE operation...")
-        response = make_request('DELETE', f'/move/{move_id}')
-        if not response or response.status_code != 200:
-            print("❌ DELETE operation failed")
-            return False
-        print("✅ DELETE operation successful")
-        
-        # Step 5: Verify deletion
-        print("5. Verifying deletion...")
-        response = make_request('GET', '/move')
-        if response and response.status_code == 200:
-            all_moves = response.json()
-            deleted_move = next((m for m in all_moves if m.get('id') == move_id), None)
-            if not deleted_move:
-                print("✅ Deletion verified successfully")
-                return True
-            else:
-                print("❌ Item still exists after deletion")
+                self.log_result("Share Access/Create User API", False, f"Status {response.status_code}: {response.text}")
                 return False
                 
-    except Exception as e:
-        print(f"❌ Test failed with error: {e}")
-        return False
+        except Exception as e:
+            self.log_result("Share Access/Create User API", False, f"Exception: {str(e)}")
+            return False
 
-def test_documents_put_delete():
-    """Test Documents PUT/DELETE operations"""
-    print("\n=== Testing Documents PUT/DELETE Operations ===")
-    
-    try:
-        # Step 1: Create document
-        print("1. Creating document...")
-        create_data = {
-            "documentType": "Aadhaar Card",
-            "fileName": "test_aadhaar.pdf",
-            "flatNumber": "A-101",
-            "uploadedBy": "John Doe",
-            "status": "pending"
-        }
-        
-        response = make_request('POST', '/documents', create_data)
-        if not response or response.status_code != 200:
-            print("❌ Failed to create document")
-            return False
+    def test_list_users(self) -> bool:
+        """Test GET /api/users to list all users and verify new user appears"""
+        try:
+            url = f"{BASE_URL}/users"
+            print(f"Testing: GET {url}")
             
-        doc_data = response.json()
-        doc_id = doc_data.get('id')
-        print(f"✅ Created document with ID: {doc_id}")
-        
-        # Step 2: Update document with PUT
-        print("2. Testing PUT update...")
-        update_data = {
-            "status": "verified"
-        }
-        
-        response = make_request('PUT', f'/documents/{doc_id}', update_data)
-        if not response or response.status_code != 200:
-            print("❌ PUT operation failed")
-            return False
-        print("✅ PUT operation successful")
-        
-        # Step 3: Verify update
-        print("3. Verifying update...")
-        response = make_request('GET', '/documents')
-        if response and response.status_code == 200:
-            all_docs = response.json()
-            updated_doc = next((d for d in all_docs if d.get('id') == doc_id), None)
-            if updated_doc and updated_doc.get('status') == 'verified':
-                print("✅ Update verified successfully")
+            response = self.session.get(url)
+            
+            if response.status_code == 200:
+                data = response.json()
+                if isinstance(data, list):
+                    # Look for guard_john user
+                    guard_user = next((u for u in data if u.get('userId') == 'guard_john'), None)
+                    
+                    if guard_user:
+                        self.log_result(
+                            "List Users API",
+                            True,
+                            f"Users list retrieved, found guard_john user. Total users: {len(data)}. " +
+                            f"Guard details: Name={guard_user.get('name')}, Role={guard_user.get('role')}",
+                            {"total_users": len(data), "guard_user": guard_user}
+                        )
+                        return True
+                    else:
+                        self.log_result(
+                            "List Users API", 
+                            False, 
+                            f"guard_john user not found in users list. Total users: {len(data)}",
+                            data
+                        )
+                        return False
+                else:
+                    self.log_result("List Users API", False, f"Expected array, got: {type(data)}", data)
+                    return False
             else:
-                print("❌ Update not reflected")
-                return False
-        
-        # Step 4: Delete document
-        print("4. Testing DELETE operation...")
-        response = make_request('DELETE', f'/documents/{doc_id}')
-        if not response or response.status_code != 200:
-            print("❌ DELETE operation failed")
-            return False
-        print("✅ DELETE operation successful")
-        
-        # Step 5: Verify deletion
-        print("5. Verifying deletion...")
-        response = make_request('GET', '/documents')
-        if response and response.status_code == 200:
-            all_docs = response.json()
-            deleted_doc = next((d for d in all_docs if d.get('id') == doc_id), None)
-            if not deleted_doc:
-                print("✅ Deletion verified successfully")
-                return True
-            else:
-                print("❌ Item still exists after deletion")
+                self.log_result("List Users API", False, f"Status {response.status_code}: {response.text}")
                 return False
                 
-    except Exception as e:
-        print(f"❌ Test failed with error: {e}")
-        return False
+        except Exception as e:
+            self.log_result("List Users API", False, f"Exception: {str(e)}")
+            return False
+
+    def test_duplicate_user_check(self) -> bool:
+        """Test duplicate user creation - should return 400"""
+        try:
+            url = f"{BASE_URL}/users/share-access"
+            payload = {
+                "name": "Guard John Duplicate",
+                "userId": "guard_john",  # Same userId as before
+                "password": "guard456",
+                "role": "STAFF"
+            }
+            
+            print(f"Testing: POST {url} (duplicate check)")
+            print(f"Payload: {json.dumps(payload)}")
+            
+            response = self.session.post(url, json=payload)
+            
+            if response.status_code == 400:
+                data = response.json()
+                if "already exists" in data.get("message", "").lower():
+                    self.log_result(
+                        "Duplicate User Check",
+                        True,
+                        f"Correctly rejected duplicate userId with status 400: {data.get('message')}",
+                        data
+                    )
+                    return True
+                else:
+                    self.log_result("Duplicate User Check", False, f"Wrong error message: {data}")
+                    return False
+            else:
+                self.log_result("Duplicate User Check", False, f"Expected status 400, got {response.status_code}: {response.text}")
+                return False
+                
+        except Exception as e:
+            self.log_result("Duplicate User Check", False, f"Exception: {str(e)}")
+            return False
+
+    def test_login_new_user(self) -> bool:
+        """Test login with newly created guard_john user"""
+        try:
+            # First, logout admin by removing auth header
+            if "Authorization" in self.session.headers:
+                del self.session.headers["Authorization"]
+            
+            url = f"{BASE_URL}/auth/login"
+            payload = {"userId": "guard_john", "password": "guard123"}
+            
+            print(f"Testing: POST {url} (new user login)")
+            print(f"Payload: {json.dumps(payload)}")
+            
+            response = self.session.post(url, json=payload)
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                # Check required fields
+                required_fields = ["token", "user", "permissions"]
+                missing_fields = [field for field in required_fields if field not in data]
+                
+                if missing_fields:
+                    self.log_result("New User Login", False, f"Missing fields: {missing_fields}", data)
+                    return False
+                
+                # Check permissions
+                expected_permissions = ["dashboard", "security"]
+                actual_permissions = data.get("permissions", [])
+                
+                permissions_match = set(expected_permissions) == set(actual_permissions)
+                
+                if permissions_match:
+                    self.log_result(
+                        "New User Login",
+                        True,
+                        f"Login successful. User: {data['user']['name']}, Role: {data['user']['role']}, " +
+                        f"Permissions: {actual_permissions}",
+                        data
+                    )
+                    return True
+                else:
+                    self.log_result(
+                        "New User Login", 
+                        False, 
+                        f"Permissions mismatch. Expected: {expected_permissions}, Got: {actual_permissions}",
+                        data
+                    )
+                    return False
+            else:
+                self.log_result("New User Login", False, f"Status {response.status_code}: {response.text}")
+                return False
+                
+        except Exception as e:
+            self.log_result("New User Login", False, f"Exception: {str(e)}")
+            return False
+
+    def test_first_login_flag(self) -> bool:
+        """Test that isFirstLogin flag is true for newly created users"""
+        try:
+            url = f"{BASE_URL}/auth/login"
+            payload = {"userId": "guard_john", "password": "guard123"}
+            
+            print(f"Testing: POST {url} (first login flag check)")
+            print(f"Payload: {json.dumps(payload)}")
+            
+            response = self.session.post(url, json=payload)
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                is_first_login = data.get("isFirstLogin")
+                
+                if is_first_login is True:
+                    self.log_result(
+                        "First Login Flag",
+                        True,
+                        f"isFirstLogin flag correctly set to true for new user",
+                        {"isFirstLogin": is_first_login}
+                    )
+                    return True
+                elif is_first_login is False:
+                    # This might happen if user logged in before, which is also acceptable
+                    self.log_result(
+                        "First Login Flag",
+                        True,
+                        f"isFirstLogin flag is false - user has logged in before (acceptable)",
+                        {"isFirstLogin": is_first_login}
+                    )
+                    return True
+                else:
+                    self.log_result(
+                        "First Login Flag", 
+                        False, 
+                        f"isFirstLogin flag missing or invalid: {is_first_login}",
+                        data
+                    )
+                    return False
+            else:
+                self.log_result("First Login Flag", False, f"Status {response.status_code}: {response.text}")
+                return False
+                
+        except Exception as e:
+            self.log_result("First Login Flag", False, f"Exception: {str(e)}")
+            return False
+
+    def run_all_tests(self):
+        """Run all backend tests in sequence"""
+        print("=" * 80)
+        print("BACKEND API TESTING - Society Management System")
+        print("=" * 80)
+        print(f"Base URL: {BASE_URL}")
+        print()
+        
+        tests = [
+            ("Admin Login", self.test_login_admin),
+            ("Dashboard Stats API", self.test_dashboard_stats),
+            ("User Profile GET API", self.test_user_profile_get),
+            ("User Profile UPDATE API", self.test_user_profile_update),
+            ("Share Access/Create User API", self.test_create_user_share_access),
+            ("List Users API", self.test_list_users),
+            ("Duplicate User Check", self.test_duplicate_user_check),
+            ("New User Login", self.test_login_new_user),
+            ("First Login Flag", self.test_first_login_flag),
+        ]
+        
+        passed = 0
+        failed = 0
+        
+        for test_name, test_func in tests:
+            try:
+                success = test_func()
+                if success:
+                    passed += 1
+                else:
+                    failed += 1
+                time.sleep(0.5)  # Brief pause between tests
+            except Exception as e:
+                print(f"❌ FAIL: {test_name} - Exception: {str(e)}")
+                failed += 1
+        
+        print("=" * 80)
+        print("TEST SUMMARY")
+        print("=" * 80)
+        print(f"Total Tests: {passed + failed}")
+        print(f"Passed: {passed}")
+        print(f"Failed: {failed}")
+        print(f"Success Rate: {(passed / (passed + failed) * 100):.1f}%")
+        
+        if failed > 0:
+            print("\nFAILED TESTS:")
+            for result in self.test_results:
+                if not result["success"]:
+                    print(f"- {result['test']}: {result['message']}")
+        
+        return failed == 0
 
 def main():
-    """Run all backend API tests"""
-    print("Starting Backend API Tests for Society Management System - PUT/DELETE Focus")
-    print(f"Base URL: {BASE_URL}")
-    print("=" * 60)
+    """Main function to run backend tests"""
+    tester = BackendTester()
     
-    test_results = {}
-    
-    # Run PUT/DELETE tests
-    test_results['Parking PUT/DELETE'] = test_parking_put_delete()
-    test_results['Move Requests PUT/DELETE'] = test_move_put_delete()
-    test_results['Documents PUT/DELETE'] = test_documents_put_delete()
-    
-    # Summary
-    print("\n" + "=" * 60)
-    print("BACKEND API TEST SUMMARY")
-    print("=" * 60)
-    
-    passed = 0
-    failed = 0
-    
-    for test_name, result in test_results.items():
-        status = "✅ PASSED" if result else "❌ FAILED"
-        print(f"{test_name}: {status}")
-        if result:
-            passed += 1
-        else:
-            failed += 1
-    
-    print(f"\nTotal Tests: {len(test_results)}")
-    print(f"Passed: {passed}")
-    print(f"Failed: {failed}")
-    
-    if failed == 0:
-        print("\n🎉 ALL BACKEND API TESTS PASSED!")
-        sys.exit(0)
-    else:
-        print(f"\n⚠️  {failed} test(s) failed. Please check the detailed output above.")
+    try:
+        success = tester.run_all_tests()
+        sys.exit(0 if success else 1)
+    except KeyboardInterrupt:
+        print("\n\nTests interrupted by user")
+        sys.exit(1)
+    except Exception as e:
+        print(f"\n\nUnexpected error: {str(e)}")
         sys.exit(1)
 
 if __name__ == "__main__":
