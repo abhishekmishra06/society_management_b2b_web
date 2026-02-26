@@ -10,12 +10,14 @@ import {
   Briefcase, Clock, DollarSign, Store, FileSignature,
   MessageSquare, Mail, Bell, AlertCircle,
   Home as HomeIcon, Dumbbell, Package,
-  ParkingCircle, Truck, FileStack, Siren, LogOut
+  ParkingCircle, Truck, FileStack, Siren, LogOut, Settings
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { COLORS } from '@/lib/constants/colors';
 import { cn } from '@/lib/utils';
+import { SIDEBAR_PERMISSION_MAP, hasPermission } from '@/lib/permissions';
+import UserProfileDialog from '@/components/UserProfileDialog';
 
 const MENU_ITEMS = [
   {
