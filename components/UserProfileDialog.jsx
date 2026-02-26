@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { User, Mail, Phone, Shield, Key, Save, X } from 'lucide-react';
+import { User, Mail, Phone, Shield, Key, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,7 +15,6 @@ export default function UserProfileDialog({ open, onOpenChange }) {
   const [editing, setEditing] = useState(false);
   const [formData, setFormData] = useState({ name: '', email: '', phone: '' });
   const [loading, setLoading] = useState(false);
-
   const [permissions, setPermissions] = useState([]);
 
   useEffect(() => {
@@ -28,7 +27,7 @@ export default function UserProfileDialog({ open, onOpenChange }) {
       }
       const perms = localStorage.getItem('userPermissions');
       if (perms) {
-        try { setPermissions(JSON.parse(perms)); } catch (e) {}
+        try { setPermissions(JSON.parse(perms)); } catch (e) { setPermissions([]); }
       }
     }
   }, [open]);
@@ -49,7 +48,7 @@ export default function UserProfileDialog({ open, onOpenChange }) {
     }
   };
 
-  const handleSave = async () => {
+  return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
