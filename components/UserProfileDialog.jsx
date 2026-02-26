@@ -49,9 +49,7 @@ export default function UserProfileDialog({ open, onOpenChange }) {
     }
   };
 
-  const permissions = JSON.parse(localStorage.getItem('userPermissions') || '[]');
-
-  return (
+  const handleSave = async () => {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
