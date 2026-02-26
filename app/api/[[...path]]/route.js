@@ -961,12 +961,28 @@ async function handleRoute(request, { params }) {
       const moveRequest = {
         id: uuidv4(),
         ...body,
-        status: 'pending',
+        status: body.status || 'pending',
         requestDate: new Date(),
       };
       await db.collection('move_requests').insertOne(moveRequest);
       const { _id, ...moveData } = moveRequest;
       return handleCORS(NextResponse.json(moveData));
+    }
+
+    if (route.match(/^\/move\/[^/]+$/) && method === 'PUT') {
+      const id = route.split('/')[2];
+      const body = await request.json();
+      await db.collection('move_requests').updateOne(
+        { id },
+        { $set: { ...body, updatedAt: new Date() } }
+      );
+      return handleCORS(NextResponse.json({ message: 'Move request updated', id }));
+    }
+
+    if (route.match(/^\/move\/[^/]+$/) && method === 'DELETE') {
+      const id = route.split('/')[2];
+      await db.collection('move_requests').deleteOne({ id });
+      return handleCORS(NextResponse.json({ message: 'Move request deleted', id }));
     }
 
     // Documents
