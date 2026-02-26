@@ -137,6 +137,7 @@ export default function MaintenanceBillingPage() {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <Card>
