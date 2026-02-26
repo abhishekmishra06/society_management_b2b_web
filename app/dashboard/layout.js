@@ -4,12 +4,14 @@ import { useRouter, usePathname } from 'next/navigation';
 import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
 import EmergencyAlert from '@/components/emergency/EmergencyAlert';
+import WelcomeGuide from '@/components/WelcomeGuide';
 import { Toaster } from 'sonner';
 
 export default function DashboardLayout({ children }) {
   const router = useRouter();
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
   const mainContentRef = useRef(null);
 
   useEffect(() => {
@@ -17,6 +19,15 @@ export default function DashboardLayout({ children }) {
     const token = localStorage.getItem('authToken');
     if (!token) {
       router.push('/login');
+      return;
+    }
+
+    // Check if welcome guide should be shown
+    const guideSeen = localStorage.getItem('welcomeGuideSeen');
+    const isFirstLogin = localStorage.getItem('isFirstLogin');
+    if (!guideSeen || isFirstLogin === 'true') {
+      setShowGuide(true);
+      localStorage.removeItem('isFirstLogin');
     }
   }, [router]);
 
@@ -41,6 +52,8 @@ export default function DashboardLayout({ children }) {
       
       <EmergencyAlert />
       <Toaster position="top-right" richColors />
+
+      {showGuide && <WelcomeGuide onClose={() => setShowGuide(false)} />}
     </div>
   );
 }
