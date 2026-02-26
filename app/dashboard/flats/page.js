@@ -1,6 +1,6 @@
 'use client';
-import { useState } from 'react';
-import { Plus, Building2, Edit } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Plus, Building2, Edit, Search, Filter, Users, Home, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -8,59 +8,40 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { COLORS, STATUS_COLORS } from '@/lib/constants/colors';
-import { useTowers, useFlats, useCreateTower, useCreateFlat } from '@/lib/api/queries';
+import { useTowers, useFlats, useCreateTower, useCreateFlat, useResidents } from '@/lib/api/queries';
 import { toast } from 'sonner';
+import { validateForm, VALIDATION_RULES } from '@/lib/validation';
+import { exportCSV } from '@/lib/pdf-utils';
 
 export default function FlatsPage() {
   const [towerDialogOpen, setTowerDialogOpen] = useState(false);
   const [flatDialogOpen, setFlatDialogOpen] = useState(false);
   const [towerFormData, setTowerFormData] = useState({ name: '', floors: '', description: '' });
-  const [flatFormData, setFlatFormData] = useState({
-    flatNumber: '',
-    towerId: '',
-    floor: '',
-    bhk: '2',
-    area: '',
-    occupancyStatus: 'vacant',
-  });
+  const [flatFormData, setFlatFormData] = useState({ flatNumber: '', towerId: '', floor: '', bhk: '2', area: '', occupancyStatus: 'vacant' });
+  const [errors, setErrors] = useState({});
+
+  // Filters
+  const [towerSearch, setTowerSearch] = useState('');
+  const [flatSearch, setFlatSearch] = useState('');
+  const [filterTower, setFilterTower] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+  const [filterBHK, setFilterBHK] = useState('');
 
   const { data: towers, isLoading: towersLoading } = useTowers();
   const { data: flats, isLoading: flatsLoading } = useFlats();
+  const { data: residents } = useResidents();
   const createTower = useCreateTower();
   const createFlat = useCreateFlat();
 
-  const handleTowerSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      await createTower.mutateAsync(towerFormData);
-      toast.success('Tower added successfully!');
-      setTowerDialogOpen(false);
-      setTowerFormData({ name: '', floors: '', description: '' });
-    } catch (error) {
-      toast.error('Failed to add tower');
-    }
+  // Get resident info for a flat
+  const getResidentForFlat = (flatNumber) => {
+    if (!residents) return null;
+    return residents.find(r => r.flatNumber === flatNumber);
   };
 
-  const handleFlatSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      await createFlat.mutateAsync(flatFormData);
-      toast.success('Flat added successfully!');
-      setFlatDialogOpen(false);
-      setFlatFormData({
-        flatNumber: '',
-        towerId: '',
-        floor: '',
-        bhk: '2',
-        area: '',
-        occupancyStatus: 'vacant',
-      });
-    } catch (error) {
-      toast.error('Failed to add flat');
-    }
-  };
-
+  // Tower stats
   const getTowerStats = (towerId) => {
     const towerFlats = flats?.filter(f => f.towerId === towerId) || [];
     return {
@@ -70,143 +51,233 @@ export default function FlatsPage() {
     };
   };
 
+  // Filtered towers
+  const filteredTowers = useMemo(() => {
+    return (towers || []).filter(t =>
+      t.name?.toLowerCase().includes(towerSearch.toLowerCase())
+    );
+  }, [towers, towerSearch]);
+
+  // Filtered flats
+  const filteredFlats = useMemo(() => {
+    return (flats || []).filter(f => {
+      const matchSearch = (f.flatNumber || '').toLowerCase().includes(flatSearch.toLowerCase());
+      const matchTower = !filterTower || f.towerId === filterTower;
+      const matchStatus = !filterStatus || f.occupancyStatus === filterStatus;
+      const matchBHK = !filterBHK || String(f.bhk) === filterBHK;
+      return matchSearch && matchTower && matchStatus && matchBHK;
+    });
+  }, [flats, flatSearch, filterTower, filterStatus, filterBHK]);
+
+  const handleTowerSubmit = async (e) => {
+    e.preventDefault();
+    const { isValid, errors: validationErrors } = validateForm(towerFormData, {
+      name: { required: true, minLength: 1, message: 'Tower name is required' },
+      floors: { required: true, min: 1, message: 'Number of floors is required' },
+    });
+    if (!isValid) { setErrors(validationErrors); return; }
+    try {
+      await createTower.mutateAsync(towerFormData);
+      toast.success('Tower added successfully!');
+      setTowerDialogOpen(false);
+      setTowerFormData({ name: '', floors: '', description: '' });
+      setErrors({});
+    } catch (error) {
+      toast.error('Failed to add tower');
+    }
+  };
+
+  const handleFlatSubmit = async (e) => {
+    e.preventDefault();
+    const { isValid, errors: validationErrors } = validateForm(flatFormData, {
+      flatNumber: VALIDATION_RULES.flatNumber,
+      towerId: { required: true, message: 'Please select a tower' },
+      floor: { required: true, min: 0, message: 'Floor is required' },
+      bhk: { required: true, message: 'BHK is required' },
+    });
+    if (!isValid) { setErrors(validationErrors); return; }
+    try {
+      await createFlat.mutateAsync(flatFormData);
+      toast.success('Flat added successfully!');
+      setFlatDialogOpen(false);
+      setFlatFormData({ flatNumber: '', towerId: '', floor: '', bhk: '2', area: '', occupancyStatus: 'vacant' });
+      setErrors({});
+    } catch (error) {
+      toast.error('Failed to add flat');
+    }
+  };
+
+  const handleExportFlats = () => {
+    exportCSV(filteredFlats.map(f => ({
+      ...f,
+      towerName: towers?.find(t => t.id === f.towerId)?.name || 'N/A',
+      resident: getResidentForFlat(f.flatNumber)?.name || 'Vacant',
+      residentType: getResidentForFlat(f.flatNumber)?.type || '-',
+    })), [
+      { key: 'flatNumber', label: 'Flat No' },
+      { key: 'towerName', label: 'Tower' },
+      { key: 'floor', label: 'Floor' },
+      { key: 'bhk', label: 'BHK' },
+      { key: 'area', label: 'Area (sqft)' },
+      { key: 'occupancyStatus', label: 'Status' },
+      { key: 'resident', label: 'Resident' },
+      { key: 'residentType', label: 'Type' },
+    ], 'FlatsData');
+    toast.success('Flats data exported to CSV!');
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold" style={{ color: COLORS.primary }}>Flats & Towers</h1>
-          <p className="text-muted-foreground mt-1">Manage buildings and flats in your society</p>
+          <p className="text-muted-foreground mt-1">Manage buildings and flats with resident details</p>
         </div>
+      </div>
+
+      {/* Summary Cards */}
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card><CardHeader><CardTitle className="text-sm">Total Towers</CardTitle></CardHeader><CardContent><p className="text-3xl font-bold" style={{ color: COLORS.primary }}>{towers?.length || 0}</p></CardContent></Card>
+        <Card><CardHeader><CardTitle className="text-sm">Total Flats</CardTitle></CardHeader><CardContent><p className="text-3xl font-bold">{flats?.length || 0}</p></CardContent></Card>
+        <Card><CardHeader><CardTitle className="text-sm">Occupied</CardTitle></CardHeader><CardContent><p className="text-3xl font-bold" style={{ color: COLORS.success }}>{flats?.filter(f => f.occupancyStatus === 'occupied').length || 0}</p></CardContent></Card>
+        <Card><CardHeader><CardTitle className="text-sm">Vacant</CardTitle></CardHeader><CardContent><p className="text-3xl font-bold" style={{ color: COLORS.warning }}>{flats?.filter(f => f.occupancyStatus === 'vacant').length || 0}</p></CardContent></Card>
       </div>
 
       <Tabs defaultValue="towers" className="w-full">
         <TabsList>
-          <TabsTrigger value="towers">Towers</TabsTrigger>
-          <TabsTrigger value="flats">All Flats</TabsTrigger>
+          <TabsTrigger value="towers"><Building2 className="h-4 w-4 mr-1" />Towers</TabsTrigger>
+          <TabsTrigger value="flats"><Home className="h-4 w-4 mr-1" />All Flats</TabsTrigger>
         </TabsList>
 
+        {/* ===== TOWERS TAB ===== */}
         <TabsContent value="towers" className="space-y-4">
-          <div className="flex justify-end">
+          <div className="flex items-center justify-between gap-4">
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input placeholder="Search towers..." value={towerSearch} onChange={(e) => setTowerSearch(e.target.value)} className="pl-10" />
+            </div>
             <Dialog open={towerDialogOpen} onOpenChange={setTowerDialogOpen}>
               <DialogTrigger asChild>
-                <Button style={{ backgroundColor: COLORS.primary }}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Tower
+                <Button style={{ backgroundColor: COLORS.primary }} className="text-white">
+                  <Plus className="h-4 w-4 mr-2" />Add Tower
                 </Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Add New Tower</DialogTitle>
-                  <DialogDescription>Add a new building/tower to the society</DialogDescription>
+                  <DialogDescription>Add a new building/tower</DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleTowerSubmit} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="towerName">Tower Name *</Label>
-                    <Input
-                      id="towerName"
-                      value={towerFormData.name}
-                      onChange={(e) => setTowerFormData({...towerFormData, name: e.target.value})}
-                      placeholder="Tower A"
-                      required
-                    />
+                    <Label>Tower Name *</Label>
+                    <Input value={towerFormData.name} onChange={(e) => setTowerFormData({...towerFormData, name: e.target.value})} placeholder="Tower A" className={errors.name ? 'border-red-500' : ''} />
+                    {errors.name && <p className="text-xs text-red-500">{errors.name}</p>}
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="floors">Number of Floors *</Label>
-                    <Input
-                      id="floors"
-                      type="number"
-                      value={towerFormData.floors}
-                      onChange={(e) => setTowerFormData({...towerFormData, floors: e.target.value})}
-                      required
-                    />
+                    <Label>Number of Floors *</Label>
+                    <Input type="number" min="1" value={towerFormData.floors} onChange={(e) => setTowerFormData({...towerFormData, floors: e.target.value})} className={errors.floors ? 'border-red-500' : ''} />
+                    {errors.floors && <p className="text-xs text-red-500">{errors.floors}</p>}
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="description">Description</Label>
-                    <Input
-                      id="description"
-                      value={towerFormData.description}
-                      onChange={(e) => setTowerFormData({...towerFormData, description: e.target.value})}
-                    />
+                    <Label>Description</Label>
+                    <Input value={towerFormData.description} onChange={(e) => setTowerFormData({...towerFormData, description: e.target.value})} />
                   </div>
-                  <div className="flex justify-end">
-                    <Button type="submit" disabled={createTower.isPending}>
-                      {createTower.isPending ? 'Adding...' : 'Add Tower'}
-                    </Button>
-                  </div>
+                  <div className="flex justify-end"><Button type="submit" disabled={createTower.isPending}>{createTower.isPending ? 'Adding...' : 'Add Tower'}</Button></div>
                 </form>
               </DialogContent>
             </Dialog>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {towersLoading ? (
-              <div className="col-span-3 text-center py-8">Loading towers...</div>
-            ) : towers?.length === 0 ? (
-              <div className="col-span-3 text-center py-12">
-                <Building2 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">No towers yet</p>
-                <Button
-                  className="mt-4"
-                  style={{ backgroundColor: COLORS.primary }}
-                  onClick={() => setTowerDialogOpen(true)}
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add First Tower
-                </Button>
-              </div>
-            ) : (
-              towers?.map((tower) => {
-                const stats = getTowerStats(tower.id);
-                return (
-                  <Card key={tower.id}>
-                    <CardHeader className="flex flex-row items-start justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="p-3 rounded-lg" style={{ backgroundColor: COLORS.primary + '20' }}>
-                          <Building2 className="h-6 w-6" style={{ color: COLORS.primary }} />
-                        </div>
-                        <div>
-                          <CardTitle className="text-xl">{tower.name}</CardTitle>
-                          <p className="text-sm text-muted-foreground">{tower.floors} Floors</p>
-                        </div>
-                      </div>
-                      <Button variant="ghost" size="icon">
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-3">
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-muted-foreground">Total Flats</span>
-                          <Badge>{stats.total}</Badge>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-muted-foreground">Occupied</span>
-                          <Badge style={{ backgroundColor: STATUS_COLORS.occupied + '20', color: STATUS_COLORS.occupied }}>
-                            {stats.occupied}
-                          </Badge>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-muted-foreground">Vacant</span>
-                          <Badge style={{ backgroundColor: STATUS_COLORS.vacant + '20', color: STATUS_COLORS.vacant }}>
-                            {stats.vacant}
-                          </Badge>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })
-            )}
-          </div>
+          <Card>
+            <CardHeader><CardTitle>Tower List</CardTitle></CardHeader>
+            <CardContent>
+              {towersLoading ? (
+                <div className="text-center py-8">Loading towers...</div>
+              ) : filteredTowers.length === 0 ? (
+                <div className="text-center py-12">
+                  <Building2 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">No towers found</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Tower Name</TableHead>
+                      <TableHead>Floors</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead>Total Flats</TableHead>
+                      <TableHead>Occupied</TableHead>
+                      <TableHead>Vacant</TableHead>
+                      <TableHead>Occupancy Rate</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredTowers.map((tower) => {
+                      const stats = getTowerStats(tower.id);
+                      const occupancyRate = stats.total > 0 ? Math.round((stats.occupied / stats.total) * 100) : 0;
+                      return (
+                        <TableRow key={tower.id}>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <div className="p-2 rounded-lg" style={{ backgroundColor: COLORS.primary + '20' }}>
+                                <Building2 className="h-4 w-4" style={{ color: COLORS.primary }} />
+                              </div>
+                              <span className="font-semibold">{tower.name}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>{tower.floors}</TableCell>
+                          <TableCell className="text-muted-foreground">{tower.description || '-'}</TableCell>
+                          <TableCell><Badge variant="outline">{stats.total}</Badge></TableCell>
+                          <TableCell><Badge style={{ backgroundColor: COLORS.success + '20', color: COLORS.success }}>{stats.occupied}</Badge></TableCell>
+                          <TableCell><Badge style={{ backgroundColor: COLORS.warning + '20', color: COLORS.warning }}>{stats.vacant}</Badge></TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <div className="w-16 h-2 bg-muted rounded-full overflow-hidden">
+                                <div className="h-full rounded-full" style={{ width: `${occupancyRate}%`, backgroundColor: COLORS.primary }} />
+                              </div>
+                              <span className="text-xs">{occupancyRate}%</span>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
+        {/* ===== FLATS TAB ===== */}
         <TabsContent value="flats" className="space-y-4">
-          <div className="flex justify-end">
+          <div className="flex items-center gap-4 flex-wrap">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input placeholder="Search flat number..." value={flatSearch} onChange={(e) => setFlatSearch(e.target.value)} className="pl-10" />
+            </div>
+            <select className="p-2 border rounded-md text-sm" value={filterTower} onChange={(e) => setFilterTower(e.target.value)}>
+              <option value="">All Towers</option>
+              {towers?.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+            <select className="p-2 border rounded-md text-sm" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
+              <option value="">All Status</option>
+              <option value="occupied">Occupied</option>
+              <option value="vacant">Vacant</option>
+            </select>
+            <select className="p-2 border rounded-md text-sm" value={filterBHK} onChange={(e) => setFilterBHK(e.target.value)}>
+              <option value="">All BHK</option>
+              <option value="1">1 BHK</option>
+              <option value="2">2 BHK</option>
+              <option value="3">3 BHK</option>
+              <option value="4">4 BHK</option>
+            </select>
+            <Button variant="outline" size="sm" onClick={handleExportFlats}>
+              <Download className="h-4 w-4 mr-1" />CSV
+            </Button>
             <Dialog open={flatDialogOpen} onOpenChange={setFlatDialogOpen}>
               <DialogTrigger asChild>
-                <Button style={{ backgroundColor: COLORS.primary }}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Flat
+                <Button style={{ backgroundColor: COLORS.primary }} className="text-white">
+                  <Plus className="h-4 w-4 mr-2" />Add Flat
                 </Button>
               </DialogTrigger>
               <DialogContent>
@@ -218,108 +289,127 @@ export default function FlatsPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>Tower *</Label>
-                      <select
-                        className="w-full p-2 border rounded-md"
-                        value={flatFormData.towerId}
-                        onChange={(e) => setFlatFormData({...flatFormData, towerId: e.target.value})}
-                        required
-                      >
+                      <select className={`w-full p-2 border rounded-md ${errors.towerId ? 'border-red-500' : ''}`} value={flatFormData.towerId} onChange={(e) => setFlatFormData({...flatFormData, towerId: e.target.value})} required>
                         <option value="">Select Tower</option>
-                        {towers?.map(t => (
-                          <option key={t.id} value={t.id}>{t.name}</option>
-                        ))}
+                        {towers?.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                       </select>
+                      {errors.towerId && <p className="text-xs text-red-500">{errors.towerId}</p>}
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="flatNumber">Flat Number *</Label>
-                      <Input
-                        id="flatNumber"
-                        value={flatFormData.flatNumber}
-                        onChange={(e) => setFlatFormData({...flatFormData, flatNumber: e.target.value})}
-                        required
-                      />
+                      <Label>Flat Number *</Label>
+                      <Input value={flatFormData.flatNumber} onChange={(e) => setFlatFormData({...flatFormData, flatNumber: e.target.value})} className={errors.flatNumber ? 'border-red-500' : ''} placeholder="e.g., A-101" />
+                      {errors.flatNumber && <p className="text-xs text-red-500">{errors.flatNumber}</p>}
                     </div>
                   </div>
                   <div className="grid grid-cols-3 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="floor">Floor *</Label>
-                      <Input
-                        id="floor"
-                        type="number"
-                        value={flatFormData.floor}
-                        onChange={(e) => setFlatFormData({...flatFormData, floor: e.target.value})}
-                        required
-                      />
+                      <Label>Floor *</Label>
+                      <Input type="number" min="0" value={flatFormData.floor} onChange={(e) => setFlatFormData({...flatFormData, floor: e.target.value})} className={errors.floor ? 'border-red-500' : ''} />
+                      {errors.floor && <p className="text-xs text-red-500">{errors.floor}</p>}
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="bhk">BHK *</Label>
-                      <Input
-                        id="bhk"
-                        value={flatFormData.bhk}
-                        onChange={(e) => setFlatFormData({...flatFormData, bhk: e.target.value})}
-                        required
-                      />
+                      <Label>BHK *</Label>
+                      <select className="w-full p-2 border rounded-md" value={flatFormData.bhk} onChange={(e) => setFlatFormData({...flatFormData, bhk: e.target.value})}>
+                        <option value="1">1 BHK</option>
+                        <option value="2">2 BHK</option>
+                        <option value="3">3 BHK</option>
+                        <option value="4">4 BHK</option>
+                      </select>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="area">Area (sq ft)</Label>
-                      <Input
-                        id="area"
-                        type="number"
-                        value={flatFormData.area}
-                        onChange={(e) => setFlatFormData({...flatFormData, area: e.target.value})}
-                      />
+                      <Label>Area (sq ft)</Label>
+                      <Input type="number" value={flatFormData.area} onChange={(e) => setFlatFormData({...flatFormData, area: e.target.value})} />
                     </div>
                   </div>
-                  <div className="flex justify-end">
-                    <Button type="submit" disabled={createFlat.isPending}>
-                      {createFlat.isPending ? 'Adding...' : 'Add Flat'}
-                    </Button>
-                  </div>
+                  <div className="flex justify-end"><Button type="submit" disabled={createFlat.isPending}>{createFlat.isPending ? 'Adding...' : 'Add Flat'}</Button></div>
                 </form>
               </DialogContent>
             </Dialog>
           </div>
 
           <Card>
-            <CardContent className="pt-6">
+            <CardHeader>
+              <CardTitle>Flats List ({filteredFlats.length})</CardTitle>
+            </CardHeader>
+            <CardContent>
               {flatsLoading ? (
                 <div className="text-center py-8">Loading flats...</div>
-              ) : flats?.length === 0 ? (
+              ) : filteredFlats.length === 0 ? (
                 <div className="text-center py-12">
-                  <p className="text-muted-foreground">No flats added yet</p>
+                  <Home className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">No flats found matching filters</p>
                 </div>
               ) : (
-                <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-                  {flats?.map((flat) => (
-                    <div key={flat.id} className="p-4 border rounded-lg hover:shadow-md transition-shadow">
-                      <div className="flex justify-between items-start mb-2">
-                        <div>
-                          <p className="font-semibold">Flat {flat.flatNumber}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {towers?.find(t => t.id === flat.towerId)?.name || 'Unknown'}
-                          </p>
-                        </div>
-                        <Badge
-                          style={{
-                            backgroundColor: flat.occupancyStatus === 'occupied' 
-                              ? STATUS_COLORS.occupied + '20' 
-                              : STATUS_COLORS.vacant + '20',
-                            color: flat.occupancyStatus === 'occupied' 
-                              ? STATUS_COLORS.occupied 
-                              : STATUS_COLORS.vacant,
-                          }}
-                        >
-                          {flat.occupancyStatus}
-                        </Badge>
-                      </div>
-                      <div className="text-sm space-y-1">
-                        <p>Floor: {flat.floor}</p>
-                        <p>BHK: {flat.bhk}</p>
-                        {flat.area && <p>Area: {flat.area} sq ft</p>}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Flat No</TableHead>
+                      <TableHead>Tower</TableHead>
+                      <TableHead>Floor</TableHead>
+                      <TableHead>BHK</TableHead>
+                      <TableHead>Area</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Resident/Owner</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Contact</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredFlats.map((flat) => {
+                      const resident = getResidentForFlat(flat.flatNumber);
+                      const towerName = towers?.find(t => t.id === flat.towerId)?.name || 'N/A';
+                      return (
+                        <TableRow key={flat.id}>
+                          <TableCell className="font-semibold">{flat.flatNumber}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              <Building2 className="h-3 w-3" style={{ color: COLORS.primary }} />
+                              {towerName}
+                            </div>
+                          </TableCell>
+                          <TableCell>{flat.floor}</TableCell>
+                          <TableCell>{flat.bhk} BHK</TableCell>
+                          <TableCell>{flat.area ? `${flat.area} sqft` : '-'}</TableCell>
+                          <TableCell>
+                            <Badge
+                              style={{
+                                backgroundColor: flat.occupancyStatus === 'occupied' ? COLORS.success + '20' : COLORS.warning + '20',
+                                color: flat.occupancyStatus === 'occupied' ? COLORS.success : COLORS.warning,
+                              }}
+                            >
+                              {flat.occupancyStatus}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {resident ? (
+                              <div className="flex items-center gap-1">
+                                <Users className="h-3 w-3 text-muted-foreground" />
+                                <span className="font-medium">{resident.name}</span>
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground text-sm">Vacant</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {resident ? (
+                              <Badge variant="outline" className="capitalize text-xs">
+                                {resident.type || 'resident'}
+                              </Badge>
+                            ) : '-'}
+                          </TableCell>
+                          <TableCell className="text-xs">
+                            {resident ? (
+                              <div>
+                                <p>{resident.mobile || '-'}</p>
+                                <p className="text-muted-foreground">{resident.email || ''}</p>
+                              </div>
+                            ) : '-'}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
               )}
             </CardContent>
           </Card>
