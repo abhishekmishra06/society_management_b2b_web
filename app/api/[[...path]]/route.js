@@ -1003,6 +1003,22 @@ async function handleRoute(request, { params }) {
       return handleCORS(NextResponse.json(documentData));
     }
 
+    if (route.match(/^\/documents\/[^/]+$/) && method === 'PUT') {
+      const id = route.split('/')[2];
+      const body = await request.json();
+      await db.collection('documents').updateOne(
+        { id },
+        { $set: { ...body, updatedAt: new Date() } }
+      );
+      return handleCORS(NextResponse.json({ message: 'Document updated', id }));
+    }
+
+    if (route.match(/^\/documents\/[^/]+$/) && method === 'DELETE') {
+      const id = route.split('/')[2];
+      await db.collection('documents').deleteOne({ id });
+      return handleCORS(NextResponse.json({ message: 'Document deleted', id }));
+    }
+
     // Route not found
     return handleCORS(NextResponse.json(
       { error: `Route ${route} not found` },
