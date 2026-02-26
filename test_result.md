@@ -150,7 +150,11 @@ backend:
     file: "app/api/[[...path]]/route.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "testing"
+          comment: "✅ VERIFIED: POST /api/notices creates notice with ID 7bebd4ea-681d-4c48-a276-24af79190abf, GET /api/notices returns array of 2 notices including created one. Full CRUD workflow tested successfully."
 
   - task: "Complaint CRUD API"
     implemented: true
