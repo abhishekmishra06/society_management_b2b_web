@@ -199,23 +199,24 @@ export default function Sidebar({ mobileOpen, setMobileOpen }) {
             </div>
           </div>
 
-          {/* User Info */}
-          <div className="p-4 border-b shrink-0" style={{ borderColor: COLORS.border }}>
+          {/* User Info - Clickable for Profile */}
+          <div className="p-4 border-b shrink-0 cursor-pointer hover:bg-accent transition-colors" style={{ borderColor: COLORS.border }} onClick={() => setProfileOpen(true)}>
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-full flex items-center justify-center" style={{ backgroundColor: COLORS.primaryLight }}>
                 <span className="text-white font-semibold">{userName.charAt(0).toUpperCase()}</span>
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-medium truncate">{userName}</p>
-                <p className="text-xs text-muted-foreground">Administrator</p>
+                <p className="text-xs text-muted-foreground">{userRole === 'SUPER_ADMIN' ? 'Administrator' : userRole}</p>
               </div>
+              <Settings className="h-4 w-4 text-muted-foreground" />
             </div>
           </div>
 
           {/* Navigation - using native div with overflow instead of ScrollArea */}
           <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 py-4">
             <div className="space-y-2">
-              {MENU_ITEMS.map((section) => {
+              {filteredMenuItems.map((section) => {
                 const isExpanded = expandedGroups.includes(section.group);
                 const GroupIcon = section.icon;
                 const hasActiveItem = section.items.some(item => pathname === item.path);
