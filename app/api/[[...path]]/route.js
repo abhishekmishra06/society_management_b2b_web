@@ -934,6 +934,22 @@ async function handleRoute(request, { params }) {
       return handleCORS(NextResponse.json(slotData));
     }
 
+    if (route.match(/^\/parking\/[^/]+$/) && method === 'PUT') {
+      const id = route.split('/')[2];
+      const body = await request.json();
+      await db.collection('parking_slots').updateOne(
+        { id },
+        { $set: { ...body, updatedAt: new Date() } }
+      );
+      return handleCORS(NextResponse.json({ message: 'Parking slot updated', id }));
+    }
+
+    if (route.match(/^\/parking\/[^/]+$/) && method === 'DELETE') {
+      const id = route.split('/')[2];
+      await db.collection('parking_slots').deleteOne({ id });
+      return handleCORS(NextResponse.json({ message: 'Parking slot deleted', id }));
+    }
+
     // Move Requests
     if (route === '/move' && method === 'GET') {
       const moveRequests = await db.collection('move_requests').find({}).sort({ requestDate: -1 }).toArray();
