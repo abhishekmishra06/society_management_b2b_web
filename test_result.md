@@ -174,7 +174,11 @@ backend:
     file: "app/api/[[...path]]/route.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "testing"
+          comment: "✅ VERIFIED: POST /api/announcements creates announcement with ID 853a3131-91c1-425c-8dd7-b7c41f9b0e5f, GET /api/announcements returns array of 1 announcements including created one. Full CRUD workflow tested successfully."
 
   - task: "Emergency trigger API endpoint"
     implemented: true
