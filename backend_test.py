@@ -1,415 +1,391 @@
 #!/usr/bin/env python3
 """
 Backend API Testing Script for Society Management System
-Tests all priority backend endpoints as specified in test_result.md
+Tests all CRUD operations and authentication endpoints
 """
 
 import requests
 import json
-import time
-import sys
-from datetime import datetime, timezone
+import os
+from datetime import datetime
 
-# Configuration
-BASE_URL = "https://resident-hub-preview-1.preview.emergentagent.com/api"
-LOGIN_CREDENTIALS = {
-    "userId": "admin001", 
-    "password": "admin123"
-}
+# Get base URL from environment
+BASE_URL = "https://resident-hub-preview-1.preview.emergentagent.com"
+API_BASE = f"{BASE_URL}/api"
 
-class APITester:
+class BackendTester:
     def __init__(self):
-        self.auth_token = None
-        self.user_data = None
-        self.towers = []
         self.session = requests.Session()
-        self.session.headers.update({
-            'Content-Type': 'application/json',
-            'User-Agent': 'Testing-Agent/1.0'
-        })
+        self.auth_token = None
+        self.test_results = {}
         
-    def log_test(self, test_name, success, details=""):
-        status = "✅ PASS" if success else "❌ FAIL"
-        print(f"{status} - {test_name}")
+    def log_result(self, test_name, success, details=""):
+        """Log test result"""
+        status = "✅ PASS" if success else "❌ FAIL" 
+        print(f"{status}: {test_name}")
         if details:
-            print(f"    Details: {details}")
-        print()
-
-    def authenticate(self):
-        """Test login endpoint and get auth token"""
+            print(f"   Details: {details}")
+        self.test_results[test_name] = {"success": success, "details": details}
+        return success
+    
+    def test_login(self):
+        """Test authentication endpoint"""
         try:
-            print("🔐 Testing Authentication...")
-            
-            response = self.session.post(
-                f"{BASE_URL}/auth/login",
-                json=LOGIN_CREDENTIALS,
-                timeout=30
-            )
-            
-            if response.status_code == 200:
-                data = response.json()
-                
-                # Verify response structure
-                required_fields = ['token', 'user', 'towers']
-                missing_fields = [field for field in required_fields if field not in data]
-                
-                if missing_fields:
-                    self.log_test("Login Response Structure", False, f"Missing fields: {missing_fields}")
-                    return False
-                
-                self.auth_token = data['token']
-                self.user_data = data['user']
-                self.towers = data['towers']
-                
-                # Set auth header for future requests
-                self.session.headers.update({
-                    'Authorization': f'Bearer {self.auth_token}'
-                })
-                
-                self.log_test("Login Authentication", True, 
-                             f"User: {self.user_data.get('name', 'N/A')}, Towers: {len(self.towers)}")
-                return True
-            else:
-                self.log_test("Login Authentication", False, 
-                             f"Status: {response.status_code}, Response: {response.text[:200]}")
-                return False
-                
-        except Exception as e:
-            self.log_test("Login Authentication", False, f"Exception: {str(e)}")
-            return False
-
-    def test_emergency_trigger(self):
-        """Test POST /api/emergency/trigger"""
-        try:
-            print("🚨 Testing Emergency Trigger...")
-            
-            emergency_data = {
-                "type": "security",
-                "message": "Test security emergency - Backend testing",
-                "location": "Tower A",
-                "flatNumber": "A-101",
-                "tower": "Tower A"
+            url = f"{API_BASE}/auth/login"
+            payload = {
+                "userId": "admin001",
+                "password": "admin123"
             }
             
-            response = self.session.post(
-                f"{BASE_URL}/emergency/trigger",
-                json=emergency_data,
-                timeout=30
-            )
+            response = self.session.post(url, json=payload)
             
             if response.status_code == 200:
                 data = response.json()
-                
-                # Verify response structure
-                required_fields = ['id', 'type', 'message', 'status', 'timestamp']
-                missing_fields = [field for field in required_fields if field not in data]
-                
-                if missing_fields:
-                    self.log_test("Emergency Trigger", False, f"Missing fields: {missing_fields}")
-                    return None
-                
-                if data.get('status') != 'active':
-                    self.log_test("Emergency Trigger", False, f"Expected status 'active', got '{data.get('status')}'")
-                    return None
-                
-                self.log_test("Emergency Trigger", True, 
-                             f"Emergency ID: {data['id']}, Status: {data['status']}")
-                return data['id']  # Return emergency ID for later tests
+                if 'token' in data and 'user' in data:
+                    self.auth_token = data['token']
+                    self.session.headers.update({'Authorization': f'Bearer {self.auth_token}'})
+                    return self.log_result("Login Authentication", True, 
+                        f"Token received, user: {data['user'].get('name', 'Unknown')}")
+                else:
+                    return self.log_result("Login Authentication", False, 
+                        "Response missing token or user data")
             else:
-                self.log_test("Emergency Trigger", False, 
-                             f"Status: {response.status_code}, Response: {response.text[:200]}")
-                return None
+                return self.log_result("Login Authentication", False, 
+                    f"HTTP {response.status_code}: {response.text}")
                 
         except Exception as e:
-            self.log_test("Emergency Trigger", False, f"Exception: {str(e)}")
-            return None
-
-    def test_emergency_active(self):
-        """Test GET /api/emergency/active"""
+            return self.log_result("Login Authentication", False, f"Exception: {str(e)}")
+    
+    def test_visitors_crud(self):
+        """Test visitor CRUD operations"""
         try:
-            print("📋 Testing Active Emergencies List...")
-            
-            response = self.session.get(
-                f"{BASE_URL}/emergency/active",
-                timeout=30
-            )
-            
-            if response.status_code == 200:
-                data = response.json()
-                
-                if not isinstance(data, list):
-                    self.log_test("Active Emergencies List", False, "Response is not an array")
-                    return False
-                
-                self.log_test("Active Emergencies List", True, 
-                             f"Found {len(data)} active emergencies")
-                return True
-            else:
-                self.log_test("Active Emergencies List", False, 
-                             f"Status: {response.status_code}, Response: {response.text[:200]}")
-                return False
-                
-        except Exception as e:
-            self.log_test("Active Emergencies List", False, f"Exception: {str(e)}")
-            return False
-
-    def test_emergency_resolve(self, emergency_id):
-        """Test POST /api/emergency/{id}/resolve"""
-        try:
-            print("✅ Testing Emergency Resolve...")
-            
-            if not emergency_id:
-                self.log_test("Emergency Resolve", False, "No emergency ID available from trigger test")
-                return False
-            
-            response = self.session.post(
-                f"{BASE_URL}/emergency/{emergency_id}/resolve",
-                json={},
-                timeout=30
-            )
-            
-            if response.status_code == 200:
-                data = response.json()
-                
-                if 'message' not in data:
-                    self.log_test("Emergency Resolve", False, "No message in response")
-                    return False
-                
-                self.log_test("Emergency Resolve", True, 
-                             f"Emergency {emergency_id} resolved successfully")
-                return True
-            else:
-                self.log_test("Emergency Resolve", False, 
-                             f"Status: {response.status_code}, Response: {response.text[:200]}")
-                return False
-                
-        except Exception as e:
-            self.log_test("Emergency Resolve", False, f"Exception: {str(e)}")
-            return False
-
-    def test_gate_pass_get(self):
-        """Test GET /api/gate-pass"""
-        try:
-            print("🎫 Testing Gate Pass List...")
-            
-            response = self.session.get(
-                f"{BASE_URL}/gate-pass",
-                timeout=30
-            )
-            
-            if response.status_code == 200:
-                data = response.json()
-                
-                if not isinstance(data, list):
-                    self.log_test("Gate Pass List", False, "Response is not an array")
-                    return False
-                
-                self.log_test("Gate Pass List", True, 
-                             f"Found {len(data)} gate passes")
-                return True
-            else:
-                self.log_test("Gate Pass List", False, 
-                             f"Status: {response.status_code}, Response: {response.text[:200]}")
-                return False
-                
-        except Exception as e:
-            self.log_test("Gate Pass List", False, f"Exception: {str(e)}")
-            return False
-
-    def test_gate_pass_create(self):
-        """Test POST /api/gate-pass"""
-        try:
-            print("➕ Testing Gate Pass Creation...")
-            
-            gate_pass_data = {
+            # Test POST /api/visitors
+            create_url = f"{API_BASE}/visitors"
+            visitor_data = {
+                "name": "John Doe",
+                "mobile": "9876543210",
                 "flatNumber": "A-101",
-                "visitorName": "Raj Sharma", 
-                "purpose": "Backend API Testing Visit",
-                "validFrom": "2026-03-01T10:00:00.000Z",
-                "validUntil": "2026-03-01T18:00:00.000Z"
+                "purpose": "Meeting with resident"
             }
             
-            response = self.session.post(
-                f"{BASE_URL}/gate-pass",
-                json=gate_pass_data,
-                timeout=30
-            )
+            # Create visitor
+            response = self.session.post(create_url, json=visitor_data)
+            if response.status_code != 200:
+                return self.log_result("Create Visitor", False, 
+                    f"Create failed - HTTP {response.status_code}: {response.text}")
             
-            if response.status_code == 200:
-                data = response.json()
-                
-                # Verify response structure
-                required_fields = ['id', 'flatNumber', 'visitorName', 'qrCode', 'status']
-                missing_fields = [field for field in required_fields if field not in data]
-                
-                if missing_fields:
-                    self.log_test("Gate Pass Creation", False, f"Missing fields: {missing_fields}")
-                    return False
-                
-                if data.get('status') != 'active':
-                    self.log_test("Gate Pass Creation", False, f"Expected status 'active', got '{data.get('status')}'")
-                    return False
-                
-                self.log_test("Gate Pass Creation", True, 
-                             f"Gate Pass ID: {data['id']}, Visitor: {data['visitorName']}")
-                return True
-            else:
-                self.log_test("Gate Pass Creation", False, 
-                             f"Status: {response.status_code}, Response: {response.text[:200]}")
-                return False
+            visitor = response.json()
+            if 'id' not in visitor:
+                return self.log_result("Create Visitor", False, "Created visitor missing ID")
+            
+            visitor_id = visitor['id']
+            self.log_result("Create Visitor", True, f"Created visitor with ID: {visitor_id}")
+            
+            # Test GET /api/visitors
+            response = self.session.get(create_url)
+            if response.status_code != 200:
+                return self.log_result("Get Visitors", False, 
+                    f"GET failed - HTTP {response.status_code}: {response.text}")
+            
+            visitors = response.json()
+            if not isinstance(visitors, list):
+                return self.log_result("Get Visitors", False, "Response is not an array")
+            
+            # Verify our created visitor is in the list
+            created_visitor = next((v for v in visitors if v.get('id') == visitor_id), None)
+            if not created_visitor:
+                return self.log_result("Get Visitors", False, "Created visitor not found in list")
+            
+            return self.log_result("Get Visitors", True, 
+                f"Retrieved {len(visitors)} visitors, including created one")
                 
         except Exception as e:
-            self.log_test("Gate Pass Creation", False, f"Exception: {str(e)}")
-            return False
-
-    def test_payments(self):
-        """Test GET /api/billing/payments"""
+            return self.log_result("Visitors CRUD", False, f"Exception: {str(e)}")
+    
+    def test_staff_crud(self):
+        """Test staff CRUD operations"""
         try:
-            print("💳 Testing Payments List...")
+            # Test POST /api/staff
+            create_url = f"{API_BASE}/staff"
+            staff_data = {
+                "name": "Security Guard",
+                "role": "security",
+                "mobile": "9876543211",
+                "shift": "day",
+                "salary": "15000"
+            }
             
-            response = self.session.get(
-                f"{BASE_URL}/billing/payments",
-                timeout=30
-            )
+            # Create staff
+            response = self.session.post(create_url, json=staff_data)
+            if response.status_code != 200:
+                return self.log_result("Create Staff", False, 
+                    f"Create failed - HTTP {response.status_code}: {response.text}")
             
-            if response.status_code == 200:
-                data = response.json()
-                
-                if not isinstance(data, list):
-                    self.log_test("Payments List", False, "Response is not an array")
-                    return False
-                
-                self.log_test("Payments List", True, 
-                             f"Found {len(data)} payments")
-                return True
-            else:
-                self.log_test("Payments List", False, 
-                             f"Status: {response.status_code}, Response: {response.text[:200]}")
-                return False
+            staff = response.json()
+            if 'id' not in staff:
+                return self.log_result("Create Staff", False, "Created staff missing ID")
+            
+            staff_id = staff['id']
+            self.log_result("Create Staff", True, f"Created staff with ID: {staff_id}")
+            
+            # Test GET /api/staff
+            response = self.session.get(create_url)
+            if response.status_code != 200:
+                return self.log_result("Get Staff", False, 
+                    f"GET failed - HTTP {response.status_code}: {response.text}")
+            
+            staff_list = response.json()
+            if not isinstance(staff_list, list):
+                return self.log_result("Get Staff", False, "Response is not an array")
+            
+            # Verify our created staff is in the list
+            created_staff = next((s for s in staff_list if s.get('id') == staff_id), None)
+            if not created_staff:
+                return self.log_result("Get Staff", False, "Created staff not found in list")
+            
+            return self.log_result("Get Staff", True, 
+                f"Retrieved {len(staff_list)} staff members, including created one")
                 
         except Exception as e:
-            self.log_test("Payments List", False, f"Exception: {str(e)}")
-            return False
-
-    def test_towers(self):
-        """Test GET /api/towers"""
+            return self.log_result("Staff CRUD", False, f"Exception: {str(e)}")
+    
+    def test_vendors_crud(self):
+        """Test vendor CRUD operations"""
         try:
-            print("🏢 Testing Towers List...")
+            # Test POST /api/vendors
+            create_url = f"{API_BASE}/vendors"
+            vendor_data = {
+                "companyName": "Clean Services Ltd",
+                "serviceType": "cleaning",
+                "contactPerson": "Jane Smith",
+                "mobile": "9876543212",
+                "email": "jane@cleanservices.com"
+            }
             
-            response = self.session.get(
-                f"{BASE_URL}/towers",
-                timeout=30
-            )
+            # Create vendor
+            response = self.session.post(create_url, json=vendor_data)
+            if response.status_code != 200:
+                return self.log_result("Create Vendor", False, 
+                    f"Create failed - HTTP {response.status_code}: {response.text}")
             
-            if response.status_code == 200:
-                data = response.json()
-                
-                if not isinstance(data, list):
-                    self.log_test("Towers List", False, "Response is not an array")
-                    return False
-                
-                self.log_test("Towers List", True, 
-                             f"Found {len(data)} towers")
-                return True
-            else:
-                self.log_test("Towers List", False, 
-                             f"Status: {response.status_code}, Response: {response.text[:200]}")
-                return False
+            vendor = response.json()
+            if 'id' not in vendor:
+                return self.log_result("Create Vendor", False, "Created vendor missing ID")
+            
+            vendor_id = vendor['id']
+            self.log_result("Create Vendor", True, f"Created vendor with ID: {vendor_id}")
+            
+            # Test GET /api/vendors
+            response = self.session.get(create_url)
+            if response.status_code != 200:
+                return self.log_result("Get Vendors", False, 
+                    f"GET failed - HTTP {response.status_code}: {response.text}")
+            
+            vendors = response.json()
+            if not isinstance(vendors, list):
+                return self.log_result("Get Vendors", False, "Response is not an array")
+            
+            # Verify our created vendor is in the list
+            created_vendor = next((v for v in vendors if v.get('id') == vendor_id), None)
+            if not created_vendor:
+                return self.log_result("Get Vendors", False, "Created vendor not found in list")
+            
+            return self.log_result("Get Vendors", True, 
+                f"Retrieved {len(vendors)} vendors, including created one")
                 
         except Exception as e:
-            self.log_test("Towers List", False, f"Exception: {str(e)}")
-            return False
-
+            return self.log_result("Vendors CRUD", False, f"Exception: {str(e)}")
+    
+    def test_notices_crud(self):
+        """Test notice CRUD operations"""
+        try:
+            # Test POST /api/notices
+            create_url = f"{API_BASE}/notices"
+            notice_data = {
+                "title": "Important Notice",
+                "content": "This is an important notice for all residents regarding maintenance work.",
+                "priority": "normal"
+            }
+            
+            # Create notice
+            response = self.session.post(create_url, json=notice_data)
+            if response.status_code != 200:
+                return self.log_result("Create Notice", False, 
+                    f"Create failed - HTTP {response.status_code}: {response.text}")
+            
+            notice = response.json()
+            if 'id' not in notice:
+                return self.log_result("Create Notice", False, "Created notice missing ID")
+            
+            notice_id = notice['id']
+            self.log_result("Create Notice", True, f"Created notice with ID: {notice_id}")
+            
+            # Test GET /api/notices
+            response = self.session.get(create_url)
+            if response.status_code != 200:
+                return self.log_result("Get Notices", False, 
+                    f"GET failed - HTTP {response.status_code}: {response.text}")
+            
+            notices = response.json()
+            if not isinstance(notices, list):
+                return self.log_result("Get Notices", False, "Response is not an array")
+            
+            # Verify our created notice is in the list
+            created_notice = next((n for n in notices if n.get('id') == notice_id), None)
+            if not created_notice:
+                return self.log_result("Get Notices", False, "Created notice not found in list")
+            
+            return self.log_result("Get Notices", True, 
+                f"Retrieved {len(notices)} notices, including created one")
+                
+        except Exception as e:
+            return self.log_result("Notices CRUD", False, f"Exception: {str(e)}")
+    
+    def test_complaints_crud(self):
+        """Test complaint CRUD operations"""
+        try:
+            # Test POST /api/complaints
+            create_url = f"{API_BASE}/complaints"
+            complaint_data = {
+                "title": "Water Leakage Issue",
+                "description": "Water is leaking from the pipe in the common area",
+                "category": "Plumbing",
+                "flatNumber": "A-101",
+                "priority": "high",
+                "contactName": "Resident Name",
+                "contactMobile": "9876543213"
+            }
+            
+            # Create complaint
+            response = self.session.post(create_url, json=complaint_data)
+            if response.status_code != 200:
+                return self.log_result("Create Complaint", False, 
+                    f"Create failed - HTTP {response.status_code}: {response.text}")
+            
+            complaint = response.json()
+            if 'id' not in complaint:
+                return self.log_result("Create Complaint", False, "Created complaint missing ID")
+            
+            complaint_id = complaint['id']
+            self.log_result("Create Complaint", True, f"Created complaint with ID: {complaint_id}")
+            
+            # Test GET /api/complaints
+            response = self.session.get(create_url)
+            if response.status_code != 200:
+                return self.log_result("Get Complaints", False, 
+                    f"GET failed - HTTP {response.status_code}: {response.text}")
+            
+            complaints = response.json()
+            if not isinstance(complaints, list):
+                return self.log_result("Get Complaints", False, "Response is not an array")
+            
+            # Verify our created complaint is in the list
+            created_complaint = next((c for c in complaints if c.get('id') == complaint_id), None)
+            if not created_complaint:
+                return self.log_result("Get Complaints", False, "Created complaint not found in list")
+            
+            return self.log_result("Get Complaints", True, 
+                f"Retrieved {len(complaints)} complaints, including created one")
+                
+        except Exception as e:
+            return self.log_result("Complaints CRUD", False, f"Exception: {str(e)}")
+    
+    def test_announcements_crud(self):
+        """Test announcement CRUD operations"""
+        try:
+            # Test POST /api/announcements
+            create_url = f"{API_BASE}/announcements"
+            announcement_data = {
+                "title": "Society Event Announcement",
+                "content": "We are organizing a cultural event next weekend. All residents are invited.",
+                "type": "general"
+            }
+            
+            # Create announcement
+            response = self.session.post(create_url, json=announcement_data)
+            if response.status_code != 200:
+                return self.log_result("Create Announcement", False, 
+                    f"Create failed - HTTP {response.status_code}: {response.text}")
+            
+            announcement = response.json()
+            if 'id' not in announcement:
+                return self.log_result("Create Announcement", False, "Created announcement missing ID")
+            
+            announcement_id = announcement['id']
+            self.log_result("Create Announcement", True, f"Created announcement with ID: {announcement_id}")
+            
+            # Test GET /api/announcements
+            response = self.session.get(create_url)
+            if response.status_code != 200:
+                return self.log_result("Get Announcements", False, 
+                    f"GET failed - HTTP {response.status_code}: {response.text}")
+            
+            announcements = response.json()
+            if not isinstance(announcements, list):
+                return self.log_result("Get Announcements", False, "Response is not an array")
+            
+            # Verify our created announcement is in the list
+            created_announcement = next((a for a in announcements if a.get('id') == announcement_id), None)
+            if not created_announcement:
+                return self.log_result("Get Announcements", False, "Created announcement not found in list")
+            
+            return self.log_result("Get Announcements", True, 
+                f"Retrieved {len(announcements)} announcements, including created one")
+                
+        except Exception as e:
+            return self.log_result("Announcements CRUD", False, f"Exception: {str(e)}")
+    
     def run_all_tests(self):
-        """Run all backend tests in priority order"""
+        """Run all backend API tests"""
         print("=" * 60)
-        print("🚀 SOCIETY MANAGEMENT SYSTEM - BACKEND API TESTING")
+        print("SOCIETY MANAGEMENT SYSTEM - BACKEND API TESTING")
         print("=" * 60)
-        print(f"Testing Base URL: {BASE_URL}")
-        print(f"Timestamp: {datetime.now(timezone.utc).isoformat()}")
-        print("=" * 60)
+        print(f"Base URL: {BASE_URL}")
+        print(f"API Base: {API_BASE}")
+        print("-" * 60)
         
-        # Track test results
-        results = {}
+        # Test authentication first
+        if not self.test_login():
+            print("\n❌ AUTHENTICATION FAILED - Cannot proceed with other tests")
+            return False
         
-        # 1. Authentication (Critical - Required for other tests)
-        results['login'] = self.authenticate()
+        print("-" * 60)
         
-        if not results['login']:
-            print("❌ CRITICAL: Authentication failed. Cannot continue with other tests.")
-            return results
+        # Test all CRUD operations
+        tests = [
+            self.test_visitors_crud,
+            self.test_staff_crud,
+            self.test_vendors_crud,
+            self.test_notices_crud,
+            self.test_complaints_crud,
+            self.test_announcements_crud
+        ]
         
-        # Wait a bit for any async operations
-        time.sleep(1)
-        
-        # 2. Emergency endpoints (High Priority)
-        emergency_id = self.test_emergency_trigger()
-        results['emergency_trigger'] = emergency_id is not None
-        
-        time.sleep(0.5)
-        
-        results['emergency_active'] = self.test_emergency_active()
-        
-        time.sleep(0.5)
-        
-        results['emergency_resolve'] = self.test_emergency_resolve(emergency_id)
-        
-        time.sleep(0.5)
-        
-        # 3. Gate Pass endpoints (Medium Priority)
-        results['gate_pass_get'] = self.test_gate_pass_get()
-        
-        time.sleep(0.5)
-        
-        results['gate_pass_create'] = self.test_gate_pass_create()
-        
-        time.sleep(0.5)
-        
-        # 4. Payments endpoint (Medium Priority - had previous issues)
-        results['payments'] = self.test_payments()
-        
-        time.sleep(0.5)
-        
-        # 5. Towers endpoint (Low Priority)
-        results['towers'] = self.test_towers()
+        for test in tests:
+            test()
+            print("-" * 30)
         
         # Summary
         print("=" * 60)
-        print("📊 TEST SUMMARY")
+        print("TEST SUMMARY")
         print("=" * 60)
         
-        passed = sum(1 for result in results.values() if result)
-        total = len(results)
+        passed = sum(1 for result in self.test_results.values() if result["success"])
+        total = len(self.test_results)
         
-        for test_name, result in results.items():
-            status = "✅ PASS" if result else "❌ FAIL"
-            print(f"{status} - {test_name}")
-        
-        print("=" * 60)
-        print(f"📈 Overall: {passed}/{total} tests passed ({passed/total*100:.1f}%)")
+        print(f"Total Tests: {total}")
+        print(f"Passed: {passed}")
+        print(f"Failed: {total - passed}")
+        print(f"Success Rate: {(passed/total)*100:.1f}%")
         
         if passed == total:
-            print("🎉 All backend tests PASSED!")
+            print("\n🎉 ALL TESTS PASSED! Backend API is working correctly.")
         else:
-            print("⚠️  Some backend tests FAILED - check details above")
+            print("\n⚠️  Some tests failed. Check the details above.")
         
-        return results
-
-def main():
-    """Main function to run backend tests"""
-    tester = APITester()
-    results = tester.run_all_tests()
-    
-    # Exit with error code if any critical tests failed
-    critical_tests = ['login', 'emergency_trigger', 'emergency_active', 'emergency_resolve']
-    critical_failures = [test for test in critical_tests if not results.get(test, False)]
-    
-    if critical_failures:
-        print(f"\n❌ CRITICAL FAILURES: {critical_failures}")
-        sys.exit(1)
-    else:
-        print(f"\n✅ All critical backend functions working properly")
-        sys.exit(0)
+        return passed == total
 
 if __name__ == "__main__":
-    main()
+    tester = BackendTester()
+    success = tester.run_all_tests()
+    exit(0 if success else 1)
