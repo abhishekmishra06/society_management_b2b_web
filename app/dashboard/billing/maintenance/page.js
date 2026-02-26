@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { Plus, Search, Receipt } from 'lucide-react';
+import { Plus, Search, Receipt, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { COLORS } from '@/lib/constants/colors';
 import { useMaintenanceBills, useCreateMaintenanceBill, useFlats } from '@/lib/api/queries';
 import { toast } from 'sonner';
+import { generateMaintenanceBillPDF, exportCSV } from '@/lib/pdf-utils';
 
 export default function MaintenanceBillingPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
