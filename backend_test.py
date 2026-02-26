@@ -433,20 +433,240 @@ def test_parking():
         print(f"❌ Exception in parking test: {str(e)}")
         return False
 
+def test_parking_put_delete():
+    """Test Parking PUT/DELETE operations"""
+    print("\n=== Testing Parking PUT/DELETE Operations ===")
+    
+    try:
+        # Step 1: Create parking slot
+        print("1. Creating parking slot...")
+        create_data = {
+            "slotNumber": "TEST-P001",
+            "type": "car", 
+            "status": "available",
+            "zone": "Basement 1"
+        }
+        
+        response = make_request('POST', '/parking', create_data)
+        if not response or response.status_code != 200:
+            print("❌ Failed to create parking slot")
+            return False
+            
+        parking_data = response.json()
+        parking_id = parking_data.get('id')
+        print(f"✅ Created parking slot with ID: {parking_id}")
+        
+        # Step 2: Update parking slot with PUT
+        print("2. Testing PUT update...")
+        update_data = {
+            "status": "occupied",
+            "vehicleNumber": "MH-01-XY-9999", 
+            "flatNumber": "B-202"
+        }
+        
+        response = make_request('PUT', f'/parking/{parking_id}', update_data)
+        if not response or response.status_code != 200:
+            print("❌ PUT operation failed")
+            return False
+        print("✅ PUT operation successful")
+        
+        # Step 3: Verify update
+        print("3. Verifying update...")
+        response = make_request('GET', '/parking')
+        if response and response.status_code == 200:
+            all_parking = response.json()
+            updated_slot = next((p for p in all_parking if p.get('id') == parking_id), None)
+            if updated_slot and updated_slot.get('status') == 'occupied':
+                print("✅ Update verified successfully")
+            else:
+                print("❌ Update not reflected")
+                return False
+        
+        # Step 4: Delete parking slot
+        print("4. Testing DELETE operation...")
+        response = make_request('DELETE', f'/parking/{parking_id}')
+        if not response or response.status_code != 200:
+            print("❌ DELETE operation failed")
+            return False
+        print("✅ DELETE operation successful")
+        
+        # Step 5: Verify deletion
+        print("5. Verifying deletion...")
+        response = make_request('GET', '/parking')
+        if response and response.status_code == 200:
+            all_parking = response.json()
+            deleted_slot = next((p for p in all_parking if p.get('id') == parking_id), None)
+            if not deleted_slot:
+                print("✅ Deletion verified successfully")
+                return True
+            else:
+                print("❌ Item still exists after deletion")
+                return False
+                
+    except Exception as e:
+        print(f"❌ Test failed with error: {e}")
+        return False
+
+def test_move_put_delete():
+    """Test Move Requests PUT/DELETE operations"""
+    print("\n=== Testing Move Requests PUT/DELETE Operations ===")
+    
+    try:
+        # Step 1: Create move request
+        print("1. Creating move request...")
+        create_data = {
+            "type": "move_in",
+            "residentName": "Test Resident",
+            "flatNumber": "C-301", 
+            "scheduledDate": "2026-03-15",
+            "scheduledTime": "9:00 AM - 12:00 PM",
+            "vehicleDetails": "Tempo",
+            "contactNumber": "9876543210"
+        }
+        
+        response = make_request('POST', '/move', create_data)
+        if not response or response.status_code != 200:
+            print("❌ Failed to create move request")
+            return False
+            
+        move_data = response.json()
+        move_id = move_data.get('id')
+        print(f"✅ Created move request with ID: {move_id}")
+        
+        # Step 2: Update move request with PUT
+        print("2. Testing PUT update...")
+        update_data = {
+            "status": "approved"
+        }
+        
+        response = make_request('PUT', f'/move/{move_id}', update_data)
+        if not response or response.status_code != 200:
+            print("❌ PUT operation failed")
+            return False
+        print("✅ PUT operation successful")
+        
+        # Step 3: Verify update
+        print("3. Verifying update...")
+        response = make_request('GET', '/move')
+        if response and response.status_code == 200:
+            all_moves = response.json()
+            updated_move = next((m for m in all_moves if m.get('id') == move_id), None)
+            if updated_move and updated_move.get('status') == 'approved':
+                print("✅ Update verified successfully")
+            else:
+                print("❌ Update not reflected")
+                return False
+        
+        # Step 4: Delete move request
+        print("4. Testing DELETE operation...")
+        response = make_request('DELETE', f'/move/{move_id}')
+        if not response or response.status_code != 200:
+            print("❌ DELETE operation failed")
+            return False
+        print("✅ DELETE operation successful")
+        
+        # Step 5: Verify deletion
+        print("5. Verifying deletion...")
+        response = make_request('GET', '/move')
+        if response and response.status_code == 200:
+            all_moves = response.json()
+            deleted_move = next((m for m in all_moves if m.get('id') == move_id), None)
+            if not deleted_move:
+                print("✅ Deletion verified successfully")
+                return True
+            else:
+                print("❌ Item still exists after deletion")
+                return False
+                
+    except Exception as e:
+        print(f"❌ Test failed with error: {e}")
+        return False
+
+def test_documents_put_delete():
+    """Test Documents PUT/DELETE operations"""
+    print("\n=== Testing Documents PUT/DELETE Operations ===")
+    
+    try:
+        # Step 1: Create document
+        print("1. Creating document...")
+        create_data = {
+            "documentType": "Aadhaar Card",
+            "fileName": "test_aadhaar.pdf",
+            "flatNumber": "A-101",
+            "uploadedBy": "John Doe",
+            "status": "pending"
+        }
+        
+        response = make_request('POST', '/documents', create_data)
+        if not response or response.status_code != 200:
+            print("❌ Failed to create document")
+            return False
+            
+        doc_data = response.json()
+        doc_id = doc_data.get('id')
+        print(f"✅ Created document with ID: {doc_id}")
+        
+        # Step 2: Update document with PUT
+        print("2. Testing PUT update...")
+        update_data = {
+            "status": "verified"
+        }
+        
+        response = make_request('PUT', f'/documents/{doc_id}', update_data)
+        if not response or response.status_code != 200:
+            print("❌ PUT operation failed")
+            return False
+        print("✅ PUT operation successful")
+        
+        # Step 3: Verify update
+        print("3. Verifying update...")
+        response = make_request('GET', '/documents')
+        if response and response.status_code == 200:
+            all_docs = response.json()
+            updated_doc = next((d for d in all_docs if d.get('id') == doc_id), None)
+            if updated_doc and updated_doc.get('status') == 'verified':
+                print("✅ Update verified successfully")
+            else:
+                print("❌ Update not reflected")
+                return False
+        
+        # Step 4: Delete document
+        print("4. Testing DELETE operation...")
+        response = make_request('DELETE', f'/documents/{doc_id}')
+        if not response or response.status_code != 200:
+            print("❌ DELETE operation failed")
+            return False
+        print("✅ DELETE operation successful")
+        
+        # Step 5: Verify deletion
+        print("5. Verifying deletion...")
+        response = make_request('GET', '/documents')
+        if response and response.status_code == 200:
+            all_docs = response.json()
+            deleted_doc = next((d for d in all_docs if d.get('id') == doc_id), None)
+            if not deleted_doc:
+                print("✅ Deletion verified successfully")
+                return True
+            else:
+                print("❌ Item still exists after deletion")
+                return False
+                
+    except Exception as e:
+        print(f"❌ Test failed with error: {e}")
+        return False
+
 def main():
     """Run all backend API tests"""
-    print("Starting Backend API Tests for Society Management System")
+    print("Starting Backend API Tests for Society Management System - PUT/DELETE Focus")
     print(f"Base URL: {BASE_URL}")
     print("=" * 60)
     
     test_results = {}
     
-    # Run all tests
-    test_results['Vendor Contracts'] = test_vendor_contracts()
-    test_results['Vendor Payments'] = test_vendor_payments()
-    test_results['Facilities'] = test_facilities()
-    test_results['Assets'] = test_assets()
-    test_results['Parking'] = test_parking()
+    # Run PUT/DELETE tests
+    test_results['Parking PUT/DELETE'] = test_parking_put_delete()
+    test_results['Move Requests PUT/DELETE'] = test_move_put_delete()
+    test_results['Documents PUT/DELETE'] = test_documents_put_delete()
     
     # Summary
     print("\n" + "=" * 60)
