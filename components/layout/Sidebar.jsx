@@ -387,6 +387,9 @@ export default function Sidebar({ mobileOpen, setMobileOpen }) {
           </aside>
         </>
       )}
+
+      {/* User Profile Dialog */}
+      <UserProfileDialog open={profileOpen} onOpenChange={setProfileOpen} />
     </>
   );
 }
