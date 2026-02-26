@@ -111,43 +111,58 @@ async function handleRoute(request, { params }) {
       let user = users.find(u => u.userId === userId && u.password === password);
 
       if (!user) {
-        // Create demo user if not exists
-        user = {
-          id: uuidv4(),
-          userId: userId || 'admin001',
-          password: password || 'admin123',
-          name: 'Admin User',
-          email: 'admin@mytower.com',
-          role: 'SUPER_ADMIN',
-          societyId: 'society_001',
-          createdAt: new Date(),
-        };
-        await db.collection('users').insertOne(user);
+        // Check if this is the first login (admin)
+        if (userId === 'admin001' && password === 'admin123') {
+          user = {
+            id: uuidv4(),
+            userId: 'admin001',
+            password: 'admin123',
+            name: 'Admin User',
+            email: 'admin@mytower.com',
+            phone: '',
+            role: 'SUPER_ADMIN',
+            societyId: 'society_001',
+            permissions: ['FULL_ACCESS'],
+            isFirstLogin: true,
+            createdAt: new Date(),
+          };
+          await db.collection('users').insertOne(user);
+        } else {
+          return handleCORS(NextResponse.json({ message: 'Invalid credentials' }, { status: 401 }));
+        }
       }
 
       // Get towers for this society
       const towers = await db.collection('towers')
-        .find({ societyId: user.societyId })
+        .find({ societyId: user.societyId || 'society_001' })
         .toArray();
 
       // Create some demo towers if none exist
       if (towers.length === 0) {
         const demoTowers = [
-          { id: uuidv4(), name: 'Tower A', societyId: user.societyId, floors: 10, createdAt: new Date() },
-          { id: uuidv4(), name: 'Tower B', societyId: user.societyId, floors: 12, createdAt: new Date() },
-          { id: uuidv4(), name: 'Tower C', societyId: user.societyId, floors: 15, createdAt: new Date() },
+          { id: uuidv4(), name: 'Tower A', societyId: user.societyId || 'society_001', floors: 10, createdAt: new Date() },
+          { id: uuidv4(), name: 'Tower B', societyId: user.societyId || 'society_001', floors: 12, createdAt: new Date() },
+          { id: uuidv4(), name: 'Tower C', societyId: user.societyId || 'society_001', floors: 15, createdAt: new Date() },
         ];
         await db.collection('towers').insertMany(demoTowers);
         towers.push(...demoTowers);
       }
 
+      // Check if first login
+      const isFirstLogin = user.isFirstLogin || false;
+      if (isFirstLogin) {
+        await db.collection('users').updateOne({ id: user.id }, { $set: { isFirstLogin: false } });
+      }
+
       const { password: _, _id, ...userWithoutPassword } = user;
+      const permissions = user.permissions || (user.role === 'SUPER_ADMIN' ? ['FULL_ACCESS'] : []);
 
       return handleCORS(NextResponse.json({
         token: `demo_token_${user.id}`,
         user: userWithoutPassword,
         towers: towers.map(({ _id, ...t }) => t),
-        permissions: ['FULL_ACCESS'],
+        permissions,
+        isFirstLogin,
       }));
     }
 
@@ -155,12 +170,116 @@ async function handleRoute(request, { params }) {
     if (route === '/user/profile' && method === 'GET') {
       const authUser = getAuthUser(request);
       const user = await db.collection('users').findOne({ userId: authUser.userId });
+      if (!user) return handleCORS(NextResponse.json({ message: 'User not found' }, { status: 404 }));
       const { password: _, _id, ...userWithoutPassword } = user;
       return handleCORS(NextResponse.json(userWithoutPassword));
     }
 
+    if (route === '/user/profile' && method === 'PUT') {
+      const body = await request.json();
+      const authUser = getAuthUser(request);
+      const { password, role, permissions, ...updateData } = body;
+      await db.collection('users').updateOne(
+        { userId: authUser.userId },
+        { $set: { ...updateData, updatedAt: new Date() } }
+      );
+      return handleCORS(NextResponse.json({ message: 'Profile updated' }));
+    }
+
     if (route === '/user/permissions' && method === 'GET') {
-      return handleCORS(NextResponse.json(['FULL_ACCESS']));
+      const authUser = getAuthUser(request);
+      const user = await db.collection('users').findOne({ userId: authUser.userId });
+      return handleCORS(NextResponse.json(user?.permissions || ['FULL_ACCESS']));
+    }
+
+    // ===== DASHBOARD STATS =====
+    if (route === '/dashboard/stats' && method === 'GET') {
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+      const [residents, towers, flats, vehicles, complaints, bills, visitors, moveRequests] = await Promise.all([
+        db.collection('residents').countDocuments({}),
+        db.collection('towers').countDocuments({}),
+        db.collection('flats').countDocuments({}),
+        db.collection('vehicles').countDocuments({}),
+        db.collection('complaints').find({}).toArray(),
+        db.collection('maintenance_bills').find({}).toArray(),
+        db.collection('visitors').find({}).toArray(),
+        db.collection('move_requests').find({}).toArray(),
+      ]);
+
+      const complaintsThisMonth = complaints.filter(c => new Date(c.createdAt) >= startOfMonth).length;
+      const totalComplaints = complaints.length;
+      const openComplaints = complaints.filter(c => c.status === 'open' || c.status === 'pending' || c.status === 'in_progress').length;
+      const totalBillsAmount = bills.reduce((sum, b) => sum + (Number(b.amount) || 0), 0);
+      const pendingBills = bills.filter(b => b.status === 'pending' || b.status === 'unpaid').length;
+      const paidBills = bills.filter(b => b.status === 'paid').length;
+      const visitorsToday = visitors.filter(v => {
+        const d = new Date(v.createdAt);
+        return d.toDateString() === now.toDateString();
+      }).length;
+      const pendingMoves = moveRequests.filter(m => m.status === 'pending').length;
+
+      return handleCORS(NextResponse.json({
+        residents, towers, flats, vehicles,
+        complaintsThisMonth, totalComplaints, openComplaints,
+        totalBillsAmount, pendingBills, paidBills, totalBills: bills.length,
+        visitorsToday, pendingMoves,
+      }));
+    }
+
+    // ===== SHARE ACCESS / CREATE USER =====
+    if (route === '/users/share-access' && method === 'POST') {
+      const body = await request.json();
+      const { name, userId, password, role, permissions, email, phone, linkedEntityId, linkedEntityType } = body;
+
+      if (!userId || !password || !role) {
+        return handleCORS(NextResponse.json({ message: 'userId, password, and role are required' }, { status: 400 }));
+      }
+
+      // Check if user already exists
+      const existing = await db.collection('users').findOne({ userId });
+      if (existing) {
+        return handleCORS(NextResponse.json({ message: 'User ID already exists' }, { status: 400 }));
+      }
+
+      const newUser = {
+        id: uuidv4(),
+        name: name || userId,
+        userId,
+        password,
+        email: email || '',
+        phone: phone || '',
+        role,
+        permissions: permissions || [],
+        linkedEntityId: linkedEntityId || null,
+        linkedEntityType: linkedEntityType || null,
+        societyId: 'society_001',
+        isFirstLogin: true,
+        createdAt: new Date(),
+      };
+
+      await db.collection('users').insertOne(newUser);
+      const { password: _, _id, ...userData } = newUser;
+      return handleCORS(NextResponse.json(userData));
+    }
+
+    if (route === '/users' && method === 'GET') {
+      const users = await db.collection('users').find({}).toArray();
+      return handleCORS(NextResponse.json(users.map(({ password, _id, ...u }) => u)));
+    }
+
+    if (route.match(/^\/users\/[^/]+$/) && method === 'PUT') {
+      const id = route.split('/')[2];
+      const body = await request.json();
+      await db.collection('users').updateOne({ id }, { $set: { ...body, updatedAt: new Date() } });
+      return handleCORS(NextResponse.json({ message: 'User updated' }));
+    }
+
+    if (route.match(/^\/users\/[^/]+$/) && method === 'DELETE') {
+      const id = route.split('/')[2];
+      await db.collection('users').deleteOne({ id });
+      return handleCORS(NextResponse.json({ message: 'User deleted' }));
     }
 
     // ===== TOWER ROUTES =====
