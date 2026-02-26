@@ -1,7 +1,10 @@
 'use client';
-import { TrendingUp, TrendingDown, DollarSign, PieChart } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, Download } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { COLORS } from '@/lib/constants/colors';
+import { toast } from 'sonner';
+import { generateFinancialReportPDF } from '@/lib/pdf-utils';
 
 export default function FinancialReportsPage() {
   const dummyData = {
@@ -29,11 +32,26 @@ export default function FinancialReportsPage() {
     ],
   };
 
+  const handleDownloadPDF = () => {
+    try {
+      generateFinancialReportPDF(dummyData);
+      toast.success('Financial report PDF downloaded!');
+    } catch (error) {
+      toast.error('PDF generation failed: ' + error.message);
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold" style={{ color: COLORS.primary }}>Financial Reports</h1>
-        <p className="text-muted-foreground mt-1">Collection reports, expense reports, charts</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold" style={{ color: COLORS.primary }}>Financial Reports</h1>
+          <p className="text-muted-foreground mt-1">Collection reports, expense reports, charts</p>
+        </div>
+        <Button style={{ backgroundColor: COLORS.primary }} className="text-white" onClick={handleDownloadPDF}>
+          <Download className="h-4 w-4 mr-2" />
+          Download PDF Report
+        </Button>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
@@ -43,7 +61,7 @@ export default function FinancialReportsPage() {
             <TrendingUp className="h-4 w-4" style={{ color: COLORS.success }} />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold" style={{ color: COLORS.success }}>₹{dummyData.totalIncome.toLocaleString()}</div>
+            <div className="text-3xl font-bold" style={{ color: COLORS.success }}>Rs. {dummyData.totalIncome.toLocaleString('en-IN')}</div>
             <p className="text-xs text-muted-foreground mt-1">+12% from last month</p>
           </CardContent>
         </Card>
@@ -53,7 +71,7 @@ export default function FinancialReportsPage() {
             <TrendingDown className="h-4 w-4" style={{ color: COLORS.error }} />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold" style={{ color: COLORS.error }}>₹{dummyData.totalExpenses.toLocaleString()}</div>
+            <div className="text-3xl font-bold" style={{ color: COLORS.error }}>Rs. {dummyData.totalExpenses.toLocaleString('en-IN')}</div>
             <p className="text-xs text-muted-foreground mt-1">+5% from last month</p>
           </CardContent>
         </Card>
@@ -63,7 +81,7 @@ export default function FinancialReportsPage() {
             <DollarSign className="h-4 w-4" style={{ color: COLORS.primary }} />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold" style={{ color: COLORS.primary }}>₹{dummyData.netBalance.toLocaleString()}</div>
+            <div className="text-3xl font-bold" style={{ color: COLORS.primary }}>Rs. {dummyData.netBalance.toLocaleString('en-IN')}</div>
             <p className="text-xs text-muted-foreground mt-1">Current month surplus</p>
           </CardContent>
         </Card>
@@ -71,9 +89,7 @@ export default function FinancialReportsPage() {
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
-          <CardHeader>
-            <CardTitle>Income Breakdown</CardTitle>
-          </CardHeader>
+          <CardHeader><CardTitle>Income Breakdown</CardTitle></CardHeader>
           <CardContent>
             <div className="space-y-4">
               {Object.entries(dummyData.collections).map(([key, value]) => (
@@ -83,7 +99,7 @@ export default function FinancialReportsPage() {
                     <span className="capitalize text-sm">{key}</span>
                   </div>
                   <div className="flex items-center gap-4">
-                    <span className="text-sm font-medium">₹{value.toLocaleString()}</span>
+                    <span className="text-sm font-medium">Rs. {value.toLocaleString('en-IN')}</span>
                     <span className="text-xs text-muted-foreground">{((value / dummyData.totalIncome) * 100).toFixed(1)}%</span>
                   </div>
                 </div>
@@ -91,11 +107,8 @@ export default function FinancialReportsPage() {
             </div>
           </CardContent>
         </Card>
-
         <Card>
-          <CardHeader>
-            <CardTitle>Expense Breakdown</CardTitle>
-          </CardHeader>
+          <CardHeader><CardTitle>Expense Breakdown</CardTitle></CardHeader>
           <CardContent>
             <div className="space-y-4">
               {Object.entries(dummyData.expenses).map(([key, value]) => (
@@ -105,7 +118,7 @@ export default function FinancialReportsPage() {
                     <span className="capitalize text-sm">{key}</span>
                   </div>
                   <div className="flex items-center gap-4">
-                    <span className="text-sm font-medium">₹{value.toLocaleString()}</span>
+                    <span className="text-sm font-medium">Rs. {value.toLocaleString('en-IN')}</span>
                     <span className="text-xs text-muted-foreground">{((value / dummyData.totalExpenses) * 100).toFixed(1)}%</span>
                   </div>
                 </div>
@@ -116,9 +129,7 @@ export default function FinancialReportsPage() {
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Monthly Trend (Last 5 Months)</CardTitle>
-        </CardHeader>
+        <CardHeader><CardTitle>Monthly Trend (Last 5 Months)</CardTitle></CardHeader>
         <CardContent>
           <div className="space-y-4">
             {dummyData.monthlyTrend.map((item) => (
@@ -126,19 +137,13 @@ export default function FinancialReportsPage() {
                 <div className="flex items-center justify-between text-sm">
                   <span className="font-medium">{item.month}</span>
                   <div className="flex gap-4">
-                    <span style={{ color: COLORS.success }}>Income: ₹{item.income.toLocaleString()}</span>
-                    <span style={{ color: COLORS.error }}>Expense: ₹{item.expense.toLocaleString()}</span>
-                    <span className="font-bold">Net: ₹{(item.income - item.expense).toLocaleString()}</span>
+                    <span style={{ color: COLORS.success }}>Income: Rs. {item.income.toLocaleString('en-IN')}</span>
+                    <span style={{ color: COLORS.error }}>Expense: Rs. {item.expense.toLocaleString('en-IN')}</span>
+                    <span className="font-bold">Net: Rs. {(item.income - item.expense).toLocaleString('en-IN')}</span>
                   </div>
                 </div>
                 <div className="h-2 bg-muted rounded-full overflow-hidden">
-                  <div 
-                    className="h-full" 
-                    style={{ 
-                      width: `${(item.income / 150000) * 100}%`,
-                      backgroundColor: COLORS.primary 
-                    }} 
-                  />
+                  <div className="h-full" style={{ width: `${(item.income / 150000) * 100}%`, backgroundColor: COLORS.primary }} />
                 </div>
               </div>
             ))}
@@ -147,33 +152,9 @@ export default function FinancialReportsPage() {
       </Card>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Collection Rate</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">87%</div>
-            <p className="text-xs text-muted-foreground mt-1">Of expected collections</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Avg. Monthly Income</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">₹131,000</div>
-            <p className="text-xs text-muted-foreground mt-1">Last 5 months average</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Avg. Monthly Expense</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">₹61,700</div>
-            <p className="text-xs text-muted-foreground mt-1">Last 5 months average</p>
-          </CardContent>
-        </Card>
+        <Card><CardHeader><CardTitle className="text-sm">Collection Rate</CardTitle></CardHeader><CardContent><div className="text-3xl font-bold">87%</div><p className="text-xs text-muted-foreground mt-1">Of expected collections</p></CardContent></Card>
+        <Card><CardHeader><CardTitle className="text-sm">Avg. Monthly Income</CardTitle></CardHeader><CardContent><div className="text-3xl font-bold">Rs. 1,31,000</div><p className="text-xs text-muted-foreground mt-1">Last 5 months average</p></CardContent></Card>
+        <Card><CardHeader><CardTitle className="text-sm">Avg. Monthly Expense</CardTitle></CardHeader><CardContent><div className="text-3xl font-bold">Rs. 61,700</div><p className="text-xs text-muted-foreground mt-1">Last 5 months average</p></CardContent></Card>
       </div>
     </div>
   );

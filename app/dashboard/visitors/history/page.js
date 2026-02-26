@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { COLORS } from '@/lib/constants/colors';
 import { toast } from 'sonner';
+import { generateReportPDF, exportCSV } from '@/lib/pdf-utils';
 
 export default function VisitorHistoryPage() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -22,15 +23,42 @@ export default function VisitorHistoryPage() {
   ];
 
   const filteredHistory = dummyHistory.filter(v => {
-    const matchesSearch = v.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                         v.mobile.includes(searchQuery) ||
-                         v.flatNumber.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = v.name.toLowerCase().includes(searchQuery.toLowerCase()) || v.mobile.includes(searchQuery) || v.flatNumber.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesDate = !dateFilter || v.entryTime.startsWith(dateFilter);
     return matchesSearch && matchesDate;
   });
 
   const handleExportCSV = () => {
-    toast.success('Visitor history exported to CSV!');
+    try {
+      exportCSV(filteredHistory, [
+        { key: 'name', label: 'Name' },
+        { key: 'mobile', label: 'Mobile' },
+        { key: 'flatNumber', label: 'Flat' },
+        { key: 'purpose', label: 'Purpose' },
+        { key: 'entryTime', label: 'Entry Time' },
+        { key: 'exitTime', label: 'Exit Time' },
+        { key: 'status', label: 'Status' },
+      ], 'VisitorHistory');
+      toast.success('Visitor history exported to CSV!');
+    } catch (error) {
+      toast.error('Export failed: ' + error.message);
+    }
+  };
+
+  const handleExportPDF = () => {
+    try {
+      generateReportPDF('Visitor History Report', filteredHistory, [
+        { key: 'name', label: 'Name' },
+        { key: 'mobile', label: 'Mobile' },
+        { key: 'flatNumber', label: 'Flat' },
+        { key: 'purpose', label: 'Purpose' },
+        { key: 'entryTime', label: 'Entry' },
+        { key: 'status', label: 'Status' },
+      ]);
+      toast.success('Visitor history PDF downloaded!');
+    } catch (error) {
+      toast.error('PDF generation failed: ' + error.message);
+    }
   };
 
   const calculateDuration = (entry, exit) => {
@@ -45,46 +73,14 @@ export default function VisitorHistoryPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold" style={{ color: COLORS.primary }}>Visitor History & Logs</h1>
-        <p className="text-muted-foreground mt-1">Searchable logs, date filter, export CSV</p>
+        <p className="text-muted-foreground mt-1">Searchable logs, date filter, export CSV/PDF</p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Total Visitors</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold">{dummyHistory.length}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Today</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold" style={{ color: COLORS.primary }}>
-              {dummyHistory.filter(v => v.entryTime.startsWith('2026-02-28')).length}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Currently Inside</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold" style={{ color: COLORS.success }}>
-              {dummyHistory.filter(v => v.status === 'inside').length}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Avg Duration</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold">2.5h</p>
-          </CardContent>
-        </Card>
+        <Card><CardHeader><CardTitle className="text-sm">Total Visitors</CardTitle></CardHeader><CardContent><p className="text-3xl font-bold">{dummyHistory.length}</p></CardContent></Card>
+        <Card><CardHeader><CardTitle className="text-sm">Today</CardTitle></CardHeader><CardContent><p className="text-3xl font-bold" style={{ color: COLORS.primary }}>{dummyHistory.filter(v => v.entryTime.startsWith('2026-02-28')).length}</p></CardContent></Card>
+        <Card><CardHeader><CardTitle className="text-sm">Currently Inside</CardTitle></CardHeader><CardContent><p className="text-3xl font-bold" style={{ color: COLORS.success }}>{dummyHistory.filter(v => v.status === 'inside').length}</p></CardContent></Card>
+        <Card><CardHeader><CardTitle className="text-sm">Avg Duration</CardTitle></CardHeader><CardContent><p className="text-3xl font-bold">2.5h</p></CardContent></Card>
       </div>
 
       <Card>
@@ -92,21 +88,15 @@ export default function VisitorHistoryPage() {
           <div className="flex items-center justify-between">
             <CardTitle>Visitor Logs</CardTitle>
             <div className="flex gap-2">
-              <Input
-                placeholder="Search by name, mobile, flat..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-64"
-              />
-              <Input
-                type="date"
-                value={dateFilter}
-                onChange={(e) => setDateFilter(e.target.value)}
-                className="w-40"
-              />
+              <Input placeholder="Search name, mobile, flat..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-64" />
+              <Input type="date" value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} className="w-40" />
+              <Button variant="outline" onClick={handleExportPDF}>
+                <Download className="h-4 w-4 mr-2" />
+                PDF
+              </Button>
               <Button variant="outline" onClick={handleExportCSV}>
                 <Download className="h-4 w-4 mr-2" />
-                Export CSV
+                CSV
               </Button>
             </div>
           </div>
@@ -132,14 +122,10 @@ export default function VisitorHistoryPage() {
                   <TableCell>{visitor.mobile}</TableCell>
                   <TableCell>{visitor.flatNumber}</TableCell>
                   <TableCell>{visitor.purpose}</TableCell>
-                  <TableCell>{new Date(visitor.entryTime).toLocaleString()}</TableCell>
-                  <TableCell>{visitor.exitTime ? new Date(visitor.exitTime).toLocaleString() : '-'}</TableCell>
+                  <TableCell>{new Date(visitor.entryTime).toLocaleString('en-IN')}</TableCell>
+                  <TableCell>{visitor.exitTime ? new Date(visitor.exitTime).toLocaleString('en-IN') : '-'}</TableCell>
                   <TableCell>{calculateDuration(visitor.entryTime, visitor.exitTime)}</TableCell>
-                  <TableCell>
-                    <Badge variant={visitor.status === 'inside' ? 'default' : 'secondary'}>
-                      {visitor.status}
-                    </Badge>
-                  </TableCell>
+                  <TableCell><Badge variant={visitor.status === 'inside' ? 'default' : 'secondary'}>{visitor.status}</Badge></TableCell>
                 </TableRow>
               ))}
             </TableBody>
