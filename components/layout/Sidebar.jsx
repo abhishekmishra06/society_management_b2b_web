@@ -83,6 +83,7 @@ const MENU_ITEMS = [
     group: 'Communication',
     icon: MessageSquare,
     items: [
+      { name: 'Notification Center', path: '/dashboard/notification-center', icon: Bell },
       { name: 'Notice Board', path: '/dashboard/notices', icon: Bell },
       { name: 'Send Notifications', path: '/dashboard/notifications', icon: Mail },
       { name: 'Announcements', path: '/dashboard/announcements', icon: MessageSquare },
