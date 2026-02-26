@@ -145,7 +145,7 @@ export default function StaffPage() {
             <div className="text-center py-12"><Briefcase className="h-12 w-12 mx-auto text-muted-foreground mb-4" /><p className="text-muted-foreground">No staff members found</p></div>
           ) : (
             <Table>
-              <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Role</TableHead><TableHead>Mobile</TableHead><TableHead>Shift</TableHead><TableHead>Salary</TableHead><TableHead>Joined</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
+              <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Role</TableHead><TableHead>Mobile</TableHead><TableHead>Shift</TableHead><TableHead>Salary</TableHead><TableHead>Joined</TableHead><TableHead>Status</TableHead><TableHead>Actions</TableHead></TableRow></TableHeader>
               <TableBody>
                 {filtered.map((m) => (
                   <TableRow key={m.id}>
@@ -156,6 +156,11 @@ export default function StaffPage() {
                     <TableCell>{m.salary ? `Rs. ${Number(m.salary).toLocaleString('en-IN')}` : 'N/A'}</TableCell>
                     <TableCell className="text-xs">{m.joinedAt ? new Date(m.joinedAt).toLocaleDateString('en-IN') : 'N/A'}</TableCell>
                     <TableCell><Badge variant={m.status === 'active' ? 'default' : 'secondary'}>{m.status || 'active'}</Badge></TableCell>
+                    <TableCell>
+                      <Button size="sm" variant="outline" onClick={() => { setSelectedStaff(m); setShareAccessOpen(true); }} title="Share Access">
+                        <KeyRound className="h-3 w-3 mr-1" />Access
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
