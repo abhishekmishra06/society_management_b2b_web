@@ -396,6 +396,39 @@ metadata:
         - working: true
           agent: "testing"
           comment: "✅ VERIFIED: GET /parking returns array (0 initially), POST /parking creates parking slot P-001 with ID 1e4b8273-fc64-4541-aca7-766682ef9e89, type car, status available, flat A-101. Full CRUD workflow tested successfully."
+        - working: true
+          agent: "testing"
+          comment: "✅ PUT/DELETE VERIFIED: PUT /api/parking/{id} successfully updates parking slot status to occupied with vehicle MH-01-XY-9999 for flat B-202. DELETE /api/parking/{id} successfully removes slot. Complete CRUD operations including PUT/DELETE tested and working perfectly."
+
+  - task: "Move Requests CRUD API"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "main"
+          comment: "GET/POST /move endpoints implemented with full CRUD operations"
+        - working: true
+          agent: "testing"
+          comment: "✅ PUT/DELETE VERIFIED: POST /api/move creates move request with ID 67141022-2402-4992-9726-da6064d23092 for Test Resident in flat C-301. PUT /api/move/{id} successfully updates status to approved. DELETE /api/move/{id} successfully removes request. Complete CRUD operations including PUT/DELETE tested and working perfectly."
+
+  - task: "Documents CRUD API"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "main"
+          comment: "GET/POST /documents endpoints implemented with full CRUD operations"
+        - working: true
+          agent: "testing"
+          comment: "✅ PUT/DELETE VERIFIED: POST /api/documents creates document with ID f970574b-a9fb-42fa-814c-f4431c7368a7 for Aadhaar Card document. PUT /api/documents/{id} successfully updates status to verified. DELETE /api/documents/{id} successfully removes document. Complete CRUD operations including PUT/DELETE tested and working perfectly."
 
 frontend:
   - task: "Emergency SOS Test Button with blinking alert"
