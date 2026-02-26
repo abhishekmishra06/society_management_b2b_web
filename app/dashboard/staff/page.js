@@ -168,6 +168,16 @@ export default function StaffPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Share Access Dialog */}
+      <ShareAccessDialog
+        open={shareAccessOpen}
+        onOpenChange={setShareAccessOpen}
+        entityName={selectedStaff?.name || ''}
+        entityId={selectedStaff?.id || ''}
+        entityType="staff"
+        defaultRole="STAFF"
+      />
     </div>
   );
 }
