@@ -358,11 +358,14 @@ metadata:
     file: "app/api/[[...path]]/route.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
         - working: true
           agent: "main"
           comment: "GET/POST /facilities and /facilities/bookings endpoints exist. Frontend page rewritten with working Book Now, New Booking, and Add Facility dialogs."
+        - working: true
+          agent: "testing"
+          comment: "✅ VERIFIED: Both GET/POST /facilities and GET/POST /facilities/bookings working correctly. Created facility 'Swimming Pool' with ID 09afd081-e0d0-4681-bde6-55051156b8e2, created booking with ID 375c1de7-0516-4e49-91e3-725845ef47f5 for flat A-101. Full workflow tested successfully."
 
   - task: "Asset Management CRUD API"
     implemented: true
