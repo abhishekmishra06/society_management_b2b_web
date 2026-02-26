@@ -430,6 +430,54 @@ metadata:
           agent: "testing"
           comment: "✅ PUT/DELETE VERIFIED: POST /api/documents creates document with ID f970574b-a9fb-42fa-814c-f4431c7368a7 for Aadhaar Card document. PUT /api/documents/{id} successfully updates status to verified. DELETE /api/documents/{id} successfully removes document. Complete CRUD operations including PUT/DELETE tested and working perfectly."
 
+  - task: "Dashboard Stats API"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "testing"
+          comment: "✅ VERIFIED: GET /api/dashboard/stats returns all required fields: residents=6, towers=5, flats=10, vehicles=9, complaintsThisMonth=3, totalBillsAmount=30455. API working correctly with comprehensive stats calculation."
+
+  - task: "User Profile API"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "testing"
+          comment: "✅ VERIFIED: GET /api/user/profile returns user data with auth header. PUT /api/user/profile successfully updates profile (name: Admin Updated, phone: 9999999999). Update verification confirmed by subsequent GET request."
+
+  - task: "Share Access / Create User API"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "testing"
+          comment: "✅ VERIFIED: POST /api/users/share-access creates staff user 'Guard John' with ID, role STAFF, permissions [dashboard, security]. GET /api/users lists all users including new guard_john user. Duplicate user creation correctly rejected with 400 status."
+
+  - task: "Enhanced Login API with permissions"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "testing"
+          comment: "✅ VERIFIED: Login with newly created guard_john/guard123 returns token, user data, and correct permissions [dashboard, security]. isFirstLogin flag handling working correctly for new users."
+
 frontend:
   - task: "Emergency SOS Test Button with blinking alert"
     implemented: true
