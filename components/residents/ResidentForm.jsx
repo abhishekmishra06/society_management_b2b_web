@@ -28,6 +28,8 @@ export default function ResidentForm({ onSubmit, initialData, isLoading }) {
     moveInDate: '',
     ...(initialData || {}),
   });
+  
+  const [errors, setErrors] = useState({});
 
   useEffect(() => {
     if (initialData) {
@@ -35,9 +37,38 @@ export default function ResidentForm({ onSubmit, initialData, isLoading }) {
     }
   }, [initialData]);
 
+  const validateForm = () => {
+    const newErrors = {};
+    
+    if (!formData.name || formData.name.length < 3) {
+      newErrors.name = 'Name must be at least 3 characters';
+    }
+    
+    if (!formData.email || !/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = 'Valid email is required';
+    }
+    
+    if (!formData.mobile || !/^[0-9]{10}$/.test(formData.mobile)) {
+      newErrors.mobile = 'Valid 10-digit mobile number is required';
+    }
+    
+    if (!formData.tower) {
+      newErrors.tower = 'Tower is required';
+    }
+    
+    if (!formData.flatNumber) {
+      newErrors.flatNumber = 'Flat number is required';
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSubmit(formData);
+    if (validateForm()) {
+      onSubmit(formData);
+    }
   };
 
   const handleChange = (field, value) => {
