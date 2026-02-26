@@ -151,7 +151,7 @@ export default function ReceiptsPage() {
                     <TableCell>
                       <Badge variant="outline" className="capitalize">{receipt.billType}</Badge>
                     </TableCell>
-                    <TableCell className="font-medium">Rs. {(receipt.amount || 0).toLocaleString('en-IN')}</TableCell>
+                    <TableCell className="font-medium">Rs. {(Number(receipt.amount) || 0).toLocaleString('en-IN')}</TableCell>
                     <TableCell className="capitalize">{receipt.paymentMethod}</TableCell>
                     <TableCell>{receipt.paymentDate ? new Date(receipt.paymentDate).toLocaleDateString('en-IN') : 'N/A'}</TableCell>
                     <TableCell>
