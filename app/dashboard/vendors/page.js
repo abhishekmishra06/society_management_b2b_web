@@ -23,6 +23,8 @@ export default function VendorsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [errors, setErrors] = useState({});
   const [formData, setFormData] = useState({ companyName: '', serviceType: '', contactPerson: '', mobile: '', email: '', address: '' });
+  const [shareAccessOpen, setShareAccessOpen] = useState(false);
+  const [selectedVendor, setSelectedVendor] = useState(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
