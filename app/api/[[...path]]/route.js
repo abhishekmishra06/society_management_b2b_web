@@ -6,14 +6,39 @@ import axios from 'axios';
 // MongoDB connection
 let client;
 let db;
+let isConnecting = false;
 
 async function connectToMongo() {
-  if (!client) {
-    client = new MongoClient(process.env.MONGO_URL);
+  if (db) return db;
+  
+  if (isConnecting) {
+    // Wait for existing connection attempt
+    await new Promise(resolve => {
+      const interval = setInterval(() => {
+        if (db) { clearInterval(interval); resolve(); }
+      }, 50);
+      setTimeout(() => { clearInterval(interval); resolve(); }, 5000);
+    });
+    if (db) return db;
+  }
+  
+  isConnecting = true;
+  try {
+    client = new MongoClient(process.env.MONGO_URL, {
+      maxPoolSize: 10,
+      serverSelectionTimeoutMS: 5000,
+    });
     await client.connect();
     db = client.db(process.env.DB_NAME || 'society_management');
+    return db;
+  } catch (error) {
+    console.error('MongoDB connection error:', error);
+    client = null;
+    db = null;
+    throw error;
+  } finally {
+    isConnecting = false;
   }
-  return db;
 }
 
 // Helper function to handle CORS
