@@ -23,6 +23,8 @@ export default function StaffPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [errors, setErrors] = useState({});
   const [formData, setFormData] = useState({ name: '', role: '', mobile: '', email: '', shift: 'day', salary: '', aadhar: '' });
+  const [shareAccessOpen, setShareAccessOpen] = useState(false);
+  const [selectedStaff, setSelectedStaff] = useState(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
