@@ -86,7 +86,7 @@ A comprehensive, scalable society management platform built with Next.js, MongoD
 - **Password**: `admin123`
 
 ### Access the Application
-- **URL**: https://resident-hub-preview-1.preview.emergentagent.com
+- **URL**: https://community-hub-525.preview.emergentagent.com
 
 ### Default Data
 - 3 Towers pre-created: Tower A, B, C
@@ -361,7 +361,7 @@ Data isolation is handled via:
 ```env
 MONGO_URL=mongodb://localhost:27017
 DB_NAME=society_management
-NEXT_PUBLIC_BASE_URL=https://resident-hub-preview-1.preview.emergentagent.com
+NEXT_PUBLIC_BASE_URL=https://community-hub-525.preview.emergentagent.com
 CORS_ORIGINS=*
 ```
 
