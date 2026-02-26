@@ -136,14 +136,29 @@ export default function Sidebar({ mobileOpen, setMobileOpen }) {
     return ['Dashboard', activeGroup];
   });
   const [userName, setUserName] = useState('');
+  const [userRole, setUserRole] = useState('');
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [userPermissions, setUserPermissions] = useState(['FULL_ACCESS']);
 
   useEffect(() => {
     const userData = localStorage.getItem('userData');
     if (userData) {
       const user = JSON.parse(userData);
       setUserName(user.name || user.userId);
+      setUserRole(user.role || 'User');
+    }
+    const perms = localStorage.getItem('userPermissions');
+    if (perms) {
+      try { setUserPermissions(JSON.parse(perms)); } catch (e) {}
     }
   }, []);
+
+  // Filter menu items based on permissions
+  const filteredMenuItems = MENU_ITEMS.filter(section => {
+    const permKey = SIDEBAR_PERMISSION_MAP[section.group];
+    if (!permKey) return true; // Dashboard always visible
+    return hasPermission(userPermissions, permKey);
+  });
 
   // Auto-expand the group containing the active page
   useEffect(() => {
