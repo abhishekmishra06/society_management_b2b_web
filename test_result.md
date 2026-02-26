@@ -322,8 +322,161 @@ metadata:
   test_sequence: 2
   run_ui: false
 
+  - task: "Vendor Contracts CRUD API"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: true
+          agent: "main"
+          comment: "GET/POST /vendors/contracts endpoints exist in backend. Frontend page rewritten with Add Contract dialog, search, and refresh button."
+
+  - task: "Vendor Payments CRUD API"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: true
+          agent: "main"
+          comment: "GET/POST /vendors/payments endpoints exist. Frontend now uses real API data instead of dummy data, with Add Payment dialog, Pay Now, and PDF receipt download."
+
+  - task: "Facility Booking CRUD API"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: true
+          agent: "main"
+          comment: "GET/POST /facilities and /facilities/bookings endpoints exist. Frontend page rewritten with working Book Now, New Booking, and Add Facility dialogs."
+
+  - task: "Asset Management CRUD API"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: true
+          agent: "main"
+          comment: "GET/POST /assets endpoints exist. Frontend page rewritten with Add Asset dialog, stats cards, search, and refresh."
+
+  - task: "Parking Management CRUD API"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: true
+          agent: "main"
+          comment: "GET/POST /parking endpoints exist. Frontend page rewritten with Add Slot dialog, stats cards, search, and refresh."
+
+frontend:
+  - task: "Emergency SOS Test Button with blinking alert"
+    implemented: true
+    working: true
+    file: "app/dashboard/emergency/page.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "main"
+          comment: "Test button triggers blinking emergency card at bottom-right with sound - verified via screenshot"
+
+  - task: "Vendor Contracts full CRUD with Add dialog"
+    implemented: true
+    working: true
+    file: "app/dashboard/vendors/contracts/page.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: false
+          agent: "user"
+          comment: "User reported data not being displayed"
+        - working: true
+          agent: "main"
+          comment: "Rewritten with Add Contract dialog, search bar, refresh button. Connected to /vendors/contracts API. Verified via screenshot."
+
+  - task: "Vendor Payments with real API and receipt PDF"
+    implemented: true
+    working: true
+    file: "app/dashboard/vendors/payments/page.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: false
+          agent: "user"
+          comment: "User reported receipt and pay buttons not working"
+        - working: true
+          agent: "main"
+          comment: "Completely rewritten. Uses real API data instead of dummy data. Add Payment, Pay Now with confirmation dialog, and Receipt PDF download using pdf-utils.js. Verified via screenshot."
+
+  - task: "Facility Booking with Add Facility and Book Now"
+    implemented: true
+    working: true
+    file: "app/dashboard/facilities/page.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: false
+          agent: "user"
+          comment: "User reported Add new Facility functionality broken"
+        - working: true
+          agent: "main"
+          comment: "Rewritten with working Add Facility dialog, Book Now per-facility dialog, New Booking dialog. Data from API. Verified via screenshot."
+
+  - task: "Asset Management with Add Asset"
+    implemented: true
+    working: true
+    file: "app/dashboard/assets/page.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: false
+          agent: "user"
+          comment: "User reported module not working"
+        - working: true
+          agent: "main"
+          comment: "Rewritten with Add Asset dialog (name, category, condition, value, location), stats cards, search, refresh. Verified via screenshot."
+
+  - task: "Parking Management with Add Slot"
+    implemented: true
+    working: true
+    file: "app/dashboard/parking/page.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: false
+          agent: "user"
+          comment: "User reported module not working"
+        - working: true
+          agent: "main"
+          comment: "Rewritten with Add Slot dialog (slot number, type, status, vehicle, flat), stats cards, search, grid display. Verified via screenshot."
+
 test_plan:
-  current_focus: []
+  current_focus:
+    - "Vendor Contracts CRUD API"
+    - "Vendor Payments CRUD API"
+    - "Facility Booking CRUD API"
+    - "Asset Management CRUD API"
+    - "Parking Management CRUD API"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
@@ -335,3 +488,5 @@ agent_communication:
       message: "Completed comprehensive backend API testing. All 8 priority endpoints working correctly: Login authentication (returns token+user+towers), Emergency trigger/active/resolve (full workflow tested), Gate pass GET/POST (CRUD operations), Payments API (data retrieval working), Towers API (data retrieval working). MongoDB connection stable, all API responses properly formatted. All high-priority backend functionality verified and working as expected."
     - agent: "testing"
       message: "✅ ALL 6 HIGH-PRIORITY BACKEND CRUD APIs VERIFIED: (1) Visitor registration API - POST/GET working with proper data persistence, (2) Staff CRUD API - Full create/read workflow tested, (3) Vendor CRUD API - Company registration and retrieval working, (4) Notice CRUD API - Notice creation and listing functional, (5) Complaint CRUD API - Complaint submission and retrieval working, (6) Announcement CRUD API - Announcement creation and listing verified. Authentication working correctly with admin001/admin123. All endpoints return proper JSON responses with UUIDs. MongoDB connection stable, no errors detected."
+    - agent: "main"
+      message: "Phase 2 - Fixed 5 broken modules: (1) Vendor Contracts - added Add Contract dialog, search, refresh. (2) Vendor Payments - removed dummy data, connected to real API, added Add Payment dialog, Pay Now confirmation, Receipt PDF download. (3) Facilities - added working Add Facility, Book Now, New Booking dialogs. (4) Assets - added Add Asset dialog, stats cards, search. (5) Parking - added Add Slot dialog, stats cards, search, grid display. Added useCreateVendorContract, useCreateVendorPayment, useCreateAsset, useCreateParkingSlot mutation hooks to queries.js. Added generateVendorPaymentReceiptPDF to pdf-utils.js. Please test the 5 new backend CRUD endpoints: /vendors/contracts, /vendors/payments, /facilities, /assets, /parking (all GET and POST)."
