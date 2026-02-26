@@ -62,7 +62,7 @@ export default function ReceiptsPage() {
     }
   };
 
-  const totalAmount = filteredReceipts.reduce((sum, r) => sum + (r.amount || 0), 0);
+  const totalAmount = filteredReceipts.reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
 
   return (
     <div className="space-y-6">
