@@ -458,6 +458,494 @@ async function handleRoute(request, { params }) {
       return handleCORS(NextResponse.json(result));
     }
 
+    // ===== BILLING ROUTES =====
+    // Maintenance Bills
+    if (route === '/billing/maintenance' && method === 'GET') {
+      const bills = await db.collection('maintenance_bills').find({}).toArray();
+      return handleCORS(NextResponse.json(bills.map(({ _id, ...b }) => b)));
+    }
+
+    if (route === '/billing/maintenance' && method === 'POST') {
+      const body = await request.json();
+      const bill = {
+        id: uuidv4(),
+        ...body,
+        status: body.status || 'pending',
+        generatedAt: new Date(),
+      };
+      await db.collection('maintenance_bills').insertOne(bill);
+      const { _id, ...billData } = bill;
+      return handleCORS(NextResponse.json(billData));
+    }
+
+    // Utility Bills
+    if (route === '/billing/utility' && method === 'GET') {
+      const bills = await db.collection('utility_bills').find({}).toArray();
+      return handleCORS(NextResponse.json(bills.map(({ _id, ...b }) => b)));
+    }
+
+    if (route === '/billing/utility' && method === 'POST') {
+      const body = await request.json();
+      const bill = {
+        id: uuidv4(),
+        ...body,
+        status: 'pending',
+        createdAt: new Date(),
+      };
+      await db.collection('utility_bills').insertOne(bill);
+      const { _id, ...billData } = bill;
+      return handleCORS(NextResponse.json(billData));
+    }
+
+    // Payments
+    if (route === '/billing/payments' && method === 'GET') {
+      const payments = await db.collection('payments').find({}).toArray();
+      return handleCORS(NextResponse.json(payments.map(({ _id, ...p }) => p)));
+    }
+
+    if (route === '/billing/payments' && method === 'POST') {
+      const body = await request.json();
+      const payment = {
+        id: uuidv4(),
+        ...body,
+        status: 'completed',
+        paymentDate: new Date(),
+      };
+      await db.collection('payments').insertOne(payment);
+      
+      // Update bill status
+      if (body.billId) {
+        await db.collection('maintenance_bills').updateOne(
+          { id: body.billId },
+          { $set: { status: 'paid', paidAt: new Date() } }
+        );
+      }
+      
+      const { _id, ...paymentData } = payment;
+      return handleCORS(NextResponse.json(paymentData));
+    }
+
+    // Expenses
+    if (route === '/billing/expenses' && method === 'GET') {
+      const expenses = await db.collection('expenses').find({}).toArray();
+      return handleCORS(NextResponse.json(expenses.map(({ _id, ...e }) => e)));
+    }
+
+    if (route === '/billing/expenses' && method === 'POST') {
+      const body = await request.json();
+      const expense = {
+        id: uuidv4(),
+        ...body,
+        createdAt: new Date(),
+      };
+      await db.collection('expenses').insertOne(expense);
+      const { _id, ...expenseData } = expense;
+      return handleCORS(NextResponse.json(expenseData));
+    }
+
+    // Ledger
+    if (route === '/billing/ledger' && method === 'GET') {
+      const ledger = await db.collection('ledger').find({}).sort({ date: -1 }).toArray();
+      return handleCORS(NextResponse.json(ledger.map(({ _id, ...l }) => l)));
+    }
+
+    if (route === '/billing/ledger' && method === 'POST') {
+      const body = await request.json();
+      const entry = {
+        id: uuidv4(),
+        ...body,
+        date: body.date || new Date(),
+        createdAt: new Date(),
+      };
+      await db.collection('ledger').insertOne(entry);
+      const { _id, ...entryData } = entry;
+      return handleCORS(NextResponse.json(entryData));
+    }
+
+    // ===== VISITOR ROUTES =====
+    if (route === '/visitors' && method === 'GET') {
+      const visitors = await db.collection('visitors').find({}).sort({ entryTime: -1 }).toArray();
+      return handleCORS(NextResponse.json(visitors.map(({ _id, ...v }) => v)));
+    }
+
+    if (route === '/visitors' && method === 'POST') {
+      const body = await request.json();
+      const visitor = {
+        id: uuidv4(),
+        ...body,
+        status: body.status || 'pending',
+        entryTime: new Date(),
+      };
+      await db.collection('visitors').insertOne(visitor);
+      const { _id, ...visitorData } = visitor;
+      return handleCORS(NextResponse.json(visitorData));
+    }
+
+    if (route.match(/^\/visitors\/[^/]+\/approve$/) && method === 'POST') {
+      const visitorId = path[1];
+      await db.collection('visitors').updateOne(
+        { id: visitorId },
+        { $set: { status: 'approved', approvedAt: new Date() } }
+      );
+      return handleCORS(NextResponse.json({ message: 'Visitor approved' }));
+    }
+
+    if (route.match(/^\/visitors\/[^/]+\/exit$/) && method === 'POST') {
+      const visitorId = path[1];
+      await db.collection('visitors').updateOne(
+        { id: visitorId },
+        { $set: { status: 'exited', exitTime: new Date() } }
+      );
+      return handleCORS(NextResponse.json({ message: 'Visitor exit recorded' }));
+    }
+
+    // Gate Pass
+    if (route === '/gate-pass' && method === 'GET') {
+      const passes = await db.collection('gate_passes').find({}).toArray();
+      return handleCORS(NextResponse.json(passes.map(({ _id, ...p }) => p)));
+    }
+
+    if (route === '/gate-pass' && method === 'POST') {
+      const body = await request.json();
+      const pass = {
+        id: uuidv4(),
+        ...body,
+        qrCode: `QR-${uuidv4()}`,
+        status: 'active',
+        createdAt: new Date(),
+      };
+      await db.collection('gate_passes').insertOne(pass);
+      const { _id, ...passData } = pass;
+      return handleCORS(NextResponse.json(passData));
+    }
+
+    // Blacklist
+    if (route === '/blacklist' && method === 'GET') {
+      const blacklist = await db.collection('blacklist').find({}).toArray();
+      return handleCORS(NextResponse.json(blacklist.map(({ _id, ...b }) => b)));
+    }
+
+    if (route === '/blacklist' && method === 'POST') {
+      const body = await request.json();
+      const entry = {
+        id: uuidv4(),
+        ...body,
+        addedAt: new Date(),
+      };
+      await db.collection('blacklist').insertOne(entry);
+      const { _id, ...entryData } = entry;
+      return handleCORS(NextResponse.json(entryData));
+    }
+
+    // ===== STAFF ROUTES =====
+    if (route === '/staff' && method === 'GET') {
+      const staff = await db.collection('staff').find({}).toArray();
+      return handleCORS(NextResponse.json(staff.map(({ _id, ...s }) => s)));
+    }
+
+    if (route === '/staff' && method === 'POST') {
+      const body = await request.json();
+      const staffMember = {
+        id: uuidv4(),
+        ...body,
+        status: 'active',
+        joinedAt: new Date(),
+      };
+      await db.collection('staff').insertOne(staffMember);
+      const { _id, ...staffData } = staffMember;
+      return handleCORS(NextResponse.json(staffData));
+    }
+
+    // Staff Attendance
+    if (route === '/staff/attendance' && method === 'GET') {
+      const attendance = await db.collection('staff_attendance').find({}).sort({ date: -1 }).toArray();
+      return handleCORS(NextResponse.json(attendance.map(({ _id, ...a }) => a)));
+    }
+
+    if (route === '/staff/attendance' && method === 'POST') {
+      const body = await request.json();
+      const record = {
+        id: uuidv4(),
+        ...body,
+        date: body.date || new Date(),
+        createdAt: new Date(),
+      };
+      await db.collection('staff_attendance').insertOne(record);
+      const { _id, ...recordData } = record;
+      return handleCORS(NextResponse.json(recordData));
+    }
+
+    // Staff Salary
+    if (route === '/staff/salary' && method === 'GET') {
+      const salaries = await db.collection('staff_salary').find({}).toArray();
+      return handleCORS(NextResponse.json(salaries.map(({ _id, ...s }) => s)));
+    }
+
+    if (route === '/staff/salary' && method === 'POST') {
+      const body = await request.json();
+      const salary = {
+        id: uuidv4(),
+        ...body,
+        generatedAt: new Date(),
+      };
+      await db.collection('staff_salary').insertOne(salary);
+      const { _id, ...salaryData } = salary;
+      return handleCORS(NextResponse.json(salaryData));
+    }
+
+    // ===== VENDOR ROUTES =====
+    if (route === '/vendors' && method === 'GET') {
+      const vendors = await db.collection('vendors').find({}).toArray();
+      return handleCORS(NextResponse.json(vendors.map(({ _id, ...v }) => v)));
+    }
+
+    if (route === '/vendors' && method === 'POST') {
+      const body = await request.json();
+      const vendor = {
+        id: uuidv4(),
+        ...body,
+        status: 'active',
+        createdAt: new Date(),
+      };
+      await db.collection('vendors').insertOne(vendor);
+      const { _id, ...vendorData } = vendor;
+      return handleCORS(NextResponse.json(vendorData));
+    }
+
+    // Vendor Contracts
+    if (route === '/vendors/contracts' && method === 'GET') {
+      const contracts = await db.collection('vendor_contracts').find({}).toArray();
+      return handleCORS(NextResponse.json(contracts.map(({ _id, ...c }) => c)));
+    }
+
+    if (route === '/vendors/contracts' && method === 'POST') {
+      const body = await request.json();
+      const contract = {
+        id: uuidv4(),
+        ...body,
+        status: 'active',
+        createdAt: new Date(),
+      };
+      await db.collection('vendor_contracts').insertOne(contract);
+      const { _id, ...contractData } = contract;
+      return handleCORS(NextResponse.json(contractData));
+    }
+
+    // Vendor Payments
+    if (route === '/vendors/payments' && method === 'GET') {
+      const payments = await db.collection('vendor_payments').find({}).toArray();
+      return handleCORS(NextResponse.json(payments.map(({ _id, ...p }) => p)));
+    }
+
+    if (route === '/vendors/payments' && method === 'POST') {
+      const body = await request.json();
+      const payment = {
+        id: uuidv4(),
+        ...body,
+        status: 'completed',
+        paymentDate: new Date(),
+      };
+      await db.collection('vendor_payments').insertOne(payment);
+      const { _id, ...paymentData } = payment;
+      return handleCORS(NextResponse.json(paymentData));
+    }
+
+    // ===== NOTICE & COMMUNICATION ROUTES =====
+    if (route === '/notices' && method === 'GET') {
+      const notices = await db.collection('notices').find({}).sort({ createdAt: -1 }).toArray();
+      return handleCORS(NextResponse.json(notices.map(({ _id, ...n }) => n)));
+    }
+
+    if (route === '/notices' && method === 'POST') {
+      const body = await request.json();
+      const notice = {
+        id: uuidv4(),
+        ...body,
+        createdAt: new Date(),
+      };
+      await db.collection('notices').insertOne(notice);
+      const { _id, ...noticeData } = notice;
+      return handleCORS(NextResponse.json(noticeData));
+    }
+
+    // Announcements
+    if (route === '/announcements' && method === 'GET') {
+      const announcements = await db.collection('announcements').find({}).sort({ createdAt: -1 }).toArray();
+      return handleCORS(NextResponse.json(announcements.map(({ _id, ...a }) => a)));
+    }
+
+    if (route === '/announcements' && method === 'POST') {
+      const body = await request.json();
+      const announcement = {
+        id: uuidv4(),
+        ...body,
+        createdAt: new Date(),
+      };
+      await db.collection('announcements').insertOne(announcement);
+      const { _id, ...announcementData } = announcement;
+      return handleCORS(NextResponse.json(announcementData));
+    }
+
+    // ===== COMPLAINT ROUTES =====
+    if (route === '/complaints' && method === 'GET') {
+      const complaints = await db.collection('complaints').find({}).sort({ createdAt: -1 }).toArray();
+      return handleCORS(NextResponse.json(complaints.map(({ _id, ...c }) => c)));
+    }
+
+    if (route === '/complaints' && method === 'POST') {
+      const body = await request.json();
+      const complaint = {
+        id: uuidv4(),
+        ...body,
+        status: 'open',
+        createdAt: new Date(),
+      };
+      await db.collection('complaints').insertOne(complaint);
+      const { _id, ...complaintData } = complaint;
+      return handleCORS(NextResponse.json(complaintData));
+    }
+
+    if (route.match(/^\/complaints\/[^/]+$/) && method === 'PUT') {
+      const complaintId = path[1];
+      const body = await request.json();
+      await db.collection('complaints').updateOne(
+        { id: complaintId },
+        { $set: { ...body, updatedAt: new Date() } }
+      );
+      return handleCORS(NextResponse.json({ message: 'Complaint updated' }));
+    }
+
+    // ===== FACILITY ROUTES =====
+    if (route === '/facilities' && method === 'GET') {
+      const facilities = await db.collection('facilities').find({}).toArray();
+      return handleCORS(NextResponse.json(facilities.map(({ _id, ...f }) => f)));
+    }
+
+    if (route === '/facilities' && method === 'POST') {
+      const body = await request.json();
+      const facility = {
+        id: uuidv4(),
+        ...body,
+        status: 'available',
+        createdAt: new Date(),
+      };
+      await db.collection('facilities').insertOne(facility);
+      const { _id, ...facilityData } = facility;
+      return handleCORS(NextResponse.json(facilityData));
+    }
+
+    // Facility Bookings
+    if (route === '/facilities/bookings' && method === 'GET') {
+      const bookings = await db.collection('facility_bookings').find({}).sort({ bookingDate: -1 }).toArray();
+      return handleCORS(NextResponse.json(bookings.map(({ _id, ...b }) => b)));
+    }
+
+    if (route === '/facilities/bookings' && method === 'POST') {
+      const body = await request.json();
+      const booking = {
+        id: uuidv4(),
+        ...body,
+        status: 'confirmed',
+        bookedAt: new Date(),
+      };
+      await db.collection('facility_bookings').insertOne(booking);
+      const { _id, ...bookingData } = booking;
+      return handleCORS(NextResponse.json(bookingData));
+    }
+
+    // Assets
+    if (route === '/assets' && method === 'GET') {
+      const assets = await db.collection('assets').find({}).toArray();
+      return handleCORS(NextResponse.json(assets.map(({ _id, ...a }) => a)));
+    }
+
+    if (route === '/assets' && method === 'POST') {
+      const body = await request.json();
+      const asset = {
+        id: uuidv4(),
+        ...body,
+        purchasedAt: new Date(),
+      };
+      await db.collection('assets').insertOne(asset);
+      const { _id, ...assetData } = asset;
+      return handleCORS(NextResponse.json(assetData));
+    }
+
+    // AMC
+    if (route === '/amc' && method === 'GET') {
+      const amc = await db.collection('amc').find({}).toArray();
+      return handleCORS(NextResponse.json(amc.map(({ _id, ...a }) => a)));
+    }
+
+    if (route === '/amc' && method === 'POST') {
+      const body = await request.json();
+      const amcEntry = {
+        id: uuidv4(),
+        ...body,
+        status: 'active',
+        createdAt: new Date(),
+      };
+      await db.collection('amc').insertOne(amcEntry);
+      const { _id, ...amcData } = amcEntry;
+      return handleCORS(NextResponse.json(amcData));
+    }
+
+    // ===== PARKING ROUTES =====
+    if (route === '/parking' && method === 'GET') {
+      const parkingSlots = await db.collection('parking_slots').find({}).toArray();
+      return handleCORS(NextResponse.json(parkingSlots.map(({ _id, ...p }) => p)));
+    }
+
+    if (route === '/parking' && method === 'POST') {
+      const body = await request.json();
+      const slot = {
+        id: uuidv4(),
+        ...body,
+        status: body.status || 'available',
+        createdAt: new Date(),
+      };
+      await db.collection('parking_slots').insertOne(slot);
+      const { _id, ...slotData } = slot;
+      return handleCORS(NextResponse.json(slotData));
+    }
+
+    // Move Requests
+    if (route === '/move' && method === 'GET') {
+      const moveRequests = await db.collection('move_requests').find({}).sort({ requestDate: -1 }).toArray();
+      return handleCORS(NextResponse.json(moveRequests.map(({ _id, ...m }) => m)));
+    }
+
+    if (route === '/move' && method === 'POST') {
+      const body = await request.json();
+      const moveRequest = {
+        id: uuidv4(),
+        ...body,
+        status: 'pending',
+        requestDate: new Date(),
+      };
+      await db.collection('move_requests').insertOne(moveRequest);
+      const { _id, ...moveData } = moveRequest;
+      return handleCORS(NextResponse.json(moveData));
+    }
+
+    // Documents
+    if (route === '/documents' && method === 'GET') {
+      const documents = await db.collection('documents').find({}).toArray();
+      return handleCORS(NextResponse.json(documents.map(({ _id, ...d }) => d)));
+    }
+
+    if (route === '/documents' && method === 'POST') {
+      const body = await request.json();
+      const document = {
+        id: uuidv4(),
+        ...body,
+        uploadedAt: new Date(),
+      };
+      await db.collection('documents').insertOne(document);
+      const { _id, ...documentData } = document;
+      return handleCORS(NextResponse.json(documentData));
+    }
+
     // Route not found
     return handleCORS(NextResponse.json(
       { error: `Route ${route} not found` },
