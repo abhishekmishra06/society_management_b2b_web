@@ -178,6 +178,12 @@ export default function MaintenanceBillingPage() {
                       </Badge>
                     </TableCell>
                     <TableCell>{new Date(bill.generatedAt).toLocaleDateString()}</TableCell>
+                    <TableCell>
+                      <Button variant="outline" size="sm" onClick={() => { generateMaintenanceBillPDF(bill); toast.success('Bill PDF downloaded!'); }}>
+                        <Download className="h-3 w-3 mr-1" />
+                        PDF
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
