@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { COLORS } from '@/lib/constants/colors';
 import { toast } from 'sonner';
+import { generateMaterialExitPassPDF } from '@/lib/pdf-utils';
 
 export default function MaterialExitPassPage() {
   const dummyPasses = [
