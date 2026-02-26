@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { Plus, Store, Search, RefreshCw, Edit, Trash2 } from 'lucide-react';
+import { Plus, Store, Search, RefreshCw, Edit, Trash2, KeyRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,6 +13,7 @@ import { useVendors, useCreateVendor } from '@/lib/api/queries';
 import { toast } from 'sonner';
 import { validateForm, VALIDATION_RULES, formatMobile } from '@/lib/validation';
 import { useQueryClient } from '@tanstack/react-query';
+import ShareAccessDialog from '@/components/ShareAccessDialog';
 
 export default function VendorsPage() {
   const queryClient = useQueryClient();
