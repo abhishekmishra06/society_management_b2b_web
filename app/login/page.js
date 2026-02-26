@@ -30,7 +30,13 @@ export default function LoginPage() {
       localStorage.setItem('authToken', data.token);
       localStorage.setItem('userData', JSON.stringify(data.user));
       localStorage.setItem('societyId', data.user.societyId);
-      localStorage.setItem('userPermissions', JSON.stringify(data.permissions));
+      localStorage.setItem('userPermissions', JSON.stringify(data.permissions || ['FULL_ACCESS']));
+      
+      // Track first login for welcome guide
+      if (data.isFirstLogin) {
+        localStorage.setItem('isFirstLogin', 'true');
+        localStorage.removeItem('welcomeGuideSeen');
+      }
       
       // If user has towers, set the first one as default
       if (data.towers && data.towers.length > 0) {
