@@ -40,6 +40,7 @@ export function triggerTestEmergency(type = 'security') {
 
 export default function EmergencyAlert() {
   const [activeEmergencies, setActiveEmergencies] = useState([]);
+  const audioIntervalRef = useRef(null);
   const audioContextRef = useRef(null);
 
   // Subscribe to test emergency events
@@ -47,38 +48,73 @@ export default function EmergencyAlert() {
     if (typeof window === 'undefined') return;
     const unsubscribe = window.__emergencyBus.subscribe((emergency) => {
       setActiveEmergencies(prev => [...prev, emergency]);
-      playAlertSound();
     });
     return unsubscribe;
   }, []);
 
-  const playAlertSound = useCallback(() => {
-    try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      audioContextRef.current = ctx;
+  // Continuous looping siren - starts when emergencies exist, stops when all dismissed
+  useEffect(() => {
+    if (activeEmergencies.length > 0) {
+      startContinuousSiren();
+    } else {
+      stopContinuousSiren();
+    }
+    return () => stopContinuousSiren();
+  }, [activeEmergencies.length]);
 
-      const playBeep = (startTime, freq, duration) => {
+  const playSirenBurst = useCallback(() => {
+    try {
+      if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
+        audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      const ctx = audioContextRef.current;
+      if (ctx.state === 'suspended') ctx.resume();
+
+      const playTone = (startTime, freq, duration) => {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.connect(gain);
         gain.connect(ctx.destination);
         osc.frequency.value = freq;
         osc.type = 'square';
-        gain.gain.setValueAtTime(0.25, startTime);
+        gain.gain.setValueAtTime(0.18, startTime);
         gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
         osc.start(startTime);
         osc.stop(startTime + duration);
       };
 
-      // Play siren-like pattern: high-low-high
       const now = ctx.currentTime;
-      playBeep(now, 880, 0.2);
-      playBeep(now + 0.25, 660, 0.2);
-      playBeep(now + 0.5, 880, 0.2);
-      playBeep(now + 0.75, 660, 0.2);
-      playBeep(now + 1.0, 880, 0.3);
+      // Siren pattern: high-low-high-low
+      playTone(now, 880, 0.15);
+      playTone(now + 0.2, 660, 0.15);
+      playTone(now + 0.4, 880, 0.15);
+      playTone(now + 0.6, 660, 0.15);
+      playTone(now + 0.8, 980, 0.2);
     } catch (err) {
       console.warn('Audio playback failed:', err);
+    }
+  }, []);
+
+  const startContinuousSiren = useCallback(() => {
+    // Clear any existing interval
+    if (audioIntervalRef.current) clearInterval(audioIntervalRef.current);
+    // Play immediately
+    playSirenBurst();
+    // Then loop every 1.5 seconds
+    audioIntervalRef.current = setInterval(() => {
+      playSirenBurst();
+    }, 1500);
+  }, [playSirenBurst]);
+
+  const stopContinuousSiren = useCallback(() => {
+    if (audioIntervalRef.current) {
+      clearInterval(audioIntervalRef.current);
+      audioIntervalRef.current = null;
+    }
+    // Close audio context
+    if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+      try { audioContextRef.current.close(); } catch {}
+      audioContextRef.current = null;
     }
   }, []);
 
@@ -145,6 +181,10 @@ export default function EmergencyAlert() {
                   <span>&#8226;</span>
                   <span>{new Date(emergency.timestamp).toLocaleTimeString()}</span>
                 </div>
+
+                <p className="text-xs text-red-600 font-medium mb-2 animate-pulse">
+                  Siren playing continuously until you Respond or Dismiss
+                </p>
 
                 <div className="flex gap-2">
                   <Button
