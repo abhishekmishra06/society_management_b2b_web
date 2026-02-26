@@ -1138,6 +1138,164 @@ async function handleRoute(request, { params }) {
       return handleCORS(NextResponse.json({ message: 'Document deleted', id }));
     }
 
+    // ===== SUPER ADMIN API ROUTES =====
+
+    // Admin Dashboard Stats
+    if (route === '/admin/stats' && method === 'GET') {
+      const [societies, users, teams] = await Promise.all([
+        db.collection('societies').find({}).toArray(),
+        db.collection('users').find({}).toArray(),
+        db.collection('teams').find({}).toArray(),
+      ]);
+      return handleCORS(NextResponse.json({
+        totalSocieties: societies.length,
+        totalUsers: users.length,
+        totalTeams: teams.length,
+        activeSocieties: societies.filter(s => s.status === 'active').length,
+        adminUsers: users.filter(u => u.role === 'SOCIETY_ADMIN').length,
+        staffUsers: users.filter(u => u.role === 'STAFF').length,
+        superAdmins: users.filter(u => u.role === 'SUPER_ADMIN').length,
+        recentSocieties: societies.slice(-5).reverse().map(({ _id, ...s }) => s),
+        recentUsers: users.slice(-5).reverse().map(({ _id, password, ...u }) => u),
+      }));
+    }
+
+    // Society CRUD
+    if (route === '/admin/societies' && method === 'GET') {
+      const societies = await db.collection('societies').find({}).toArray();
+      return handleCORS(NextResponse.json(societies.map(({ _id, ...s }) => s)));
+    }
+
+    if (route === '/admin/societies' && method === 'POST') {
+      const body = await request.json();
+      const society = {
+        id: uuidv4(),
+        name: body.name,
+        address: body.address || '',
+        city: body.city || '',
+        state: body.state || '',
+        pincode: body.pincode || '',
+        phone: body.phone || '',
+        email: body.email || '',
+        registrationNo: body.registrationNo || '',
+        totalTowers: body.totalTowers || 0,
+        totalFlats: body.totalFlats || 0,
+        status: 'active',
+        createdAt: new Date(),
+      };
+      await db.collection('societies').insertOne(society);
+      const { _id, ...societyData } = society;
+      return handleCORS(NextResponse.json(societyData));
+    }
+
+    if (route.match(/^\/admin\/societies\/[^/]+$/) && method === 'PUT') {
+      const id = route.split('/')[3];
+      const body = await request.json();
+      await db.collection('societies').updateOne({ id }, { $set: { ...body, updatedAt: new Date() } });
+      return handleCORS(NextResponse.json({ message: 'Society updated', id }));
+    }
+
+    if (route.match(/^\/admin\/societies\/[^/]+$/) && method === 'DELETE') {
+      const id = route.split('/')[3];
+      await db.collection('societies').deleteOne({ id });
+      return handleCORS(NextResponse.json({ message: 'Society deleted', id }));
+    }
+
+    // Admin Users CRUD
+    if (route === '/admin/users' && method === 'GET') {
+      const users = await db.collection('users').find({}).toArray();
+      return handleCORS(NextResponse.json(users.map(({ _id, password, ...u }) => u)));
+    }
+
+    if (route === '/admin/users' && method === 'POST') {
+      const body = await request.json();
+      const existing = await db.collection('users').findOne({ userId: body.userId });
+      if (existing) {
+        return handleCORS(NextResponse.json({ message: 'User ID already exists' }, { status: 400 }));
+      }
+      const user = {
+        id: uuidv4(),
+        name: body.name || '',
+        userId: body.userId,
+        password: body.password,
+        email: body.email || '',
+        phone: body.phone || '',
+        role: body.role || 'SOCIETY_ADMIN',
+        permissions: body.permissions || ['FULL_ACCESS'],
+        societyId: body.societyId || '',
+        teamId: body.teamId || '',
+        isFirstLogin: true,
+        createdAt: new Date(),
+      };
+      await db.collection('users').insertOne(user);
+      const { _id, password, ...userData } = user;
+      return handleCORS(NextResponse.json(userData));
+    }
+
+    if (route.match(/^\/admin\/users\/[^/]+$/) && method === 'PUT') {
+      const id = route.split('/')[3];
+      const body = await request.json();
+      const { password, ...updateData } = body;
+      const updateObj = { ...updateData, updatedAt: new Date() };
+      if (password) updateObj.password = password;
+      await db.collection('users').updateOne({ id }, { $set: updateObj });
+      return handleCORS(NextResponse.json({ message: 'User updated', id }));
+    }
+
+    if (route.match(/^\/admin\/users\/[^/]+$/) && method === 'DELETE') {
+      const id = route.split('/')[3];
+      await db.collection('users').deleteOne({ id });
+      return handleCORS(NextResponse.json({ message: 'User deleted', id }));
+    }
+
+    // Teams CRUD
+    if (route === '/admin/teams' && method === 'GET') {
+      const teams = await db.collection('teams').find({}).toArray();
+      return handleCORS(NextResponse.json(teams.map(({ _id, ...t }) => t)));
+    }
+
+    if (route === '/admin/teams' && method === 'POST') {
+      const body = await request.json();
+      const team = {
+        id: uuidv4(),
+        name: body.name,
+        description: body.description || '',
+        societyId: body.societyId || '',
+        permissions: body.permissions || [],
+        members: body.members || [],
+        status: 'active',
+        createdAt: new Date(),
+      };
+      await db.collection('teams').insertOne(team);
+      const { _id, ...teamData } = team;
+      return handleCORS(NextResponse.json(teamData));
+    }
+
+    if (route.match(/^\/admin\/teams\/[^/]+$/) && method === 'PUT') {
+      const id = route.split('/')[3];
+      const body = await request.json();
+      await db.collection('teams').updateOne({ id }, { $set: { ...body, updatedAt: new Date() } });
+      return handleCORS(NextResponse.json({ message: 'Team updated', id }));
+    }
+
+    if (route.match(/^\/admin\/teams\/[^/]+$/) && method === 'DELETE') {
+      const id = route.split('/')[3];
+      await db.collection('teams').deleteOne({ id });
+      return handleCORS(NextResponse.json({ message: 'Team deleted', id }));
+    }
+
+    // Add member to team
+    if (route.match(/^\/admin\/teams\/[^/]+\/members$/) && method === 'POST') {
+      const id = route.split('/')[3];
+      const body = await request.json();
+      await db.collection('teams').updateOne({ id }, { $addToSet: { members: body.userId } });
+      // Update user's teamId
+      if (body.userId) {
+        await db.collection('users').updateOne({ id: body.userId }, { $set: { teamId: id } });
+      }
+      return handleCORS(NextResponse.json({ message: 'Member added to team' }));
+    }
+
     // Route not found
     return handleCORS(NextResponse.json(
       { error: `Route ${route} not found` },
