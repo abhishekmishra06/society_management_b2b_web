@@ -131,7 +131,7 @@ export default function VendorsPage() {
             <div className="text-center py-12"><Store className="h-12 w-12 mx-auto text-muted-foreground mb-4" /><p className="text-muted-foreground">No vendors found</p></div>
           ) : (
             <Table>
-              <TableHeader><TableRow><TableHead>Company</TableHead><TableHead>Service</TableHead><TableHead>Contact</TableHead><TableHead>Mobile</TableHead><TableHead>Email</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
+              <TableHeader><TableRow><TableHead>Company</TableHead><TableHead>Service</TableHead><TableHead>Contact</TableHead><TableHead>Mobile</TableHead><TableHead>Email</TableHead><TableHead>Status</TableHead><TableHead>Actions</TableHead></TableRow></TableHeader>
               <TableBody>
                 {filtered.map((v) => (
                   <TableRow key={v.id}>
@@ -141,6 +141,11 @@ export default function VendorsPage() {
                     <TableCell>{v.mobile}</TableCell>
                     <TableCell className="text-sm">{v.email}</TableCell>
                     <TableCell><Badge variant={v.status === 'active' ? 'default' : 'secondary'}>{v.status || 'active'}</Badge></TableCell>
+                    <TableCell>
+                      <Button size="sm" variant="outline" onClick={() => { setSelectedVendor(v); setShareAccessOpen(true); }} title="Share Access">
+                        <KeyRound className="h-3 w-3 mr-1" />Access
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -148,6 +153,16 @@ export default function VendorsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Share Access Dialog */}
+      <ShareAccessDialog
+        open={shareAccessOpen}
+        onOpenChange={setShareAccessOpen}
+        entityName={selectedVendor?.companyName || selectedVendor?.contactPerson || ''}
+        entityId={selectedVendor?.id || ''}
+        entityType="vendor"
+        defaultRole="VENDOR"
+      />
     </div>
   );
 }
