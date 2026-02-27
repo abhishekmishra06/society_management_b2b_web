@@ -1188,6 +1188,199 @@ async function handleRoute(request, { params }) {
       return handleCORS(NextResponse.json(societyData));
     }
 
+    // GET single society with full profile (towers, flats, residents, stats)
+    if (route.match(/^\/admin\/societies\/[^/]+\/profile$/) && method === 'GET') {
+      const id = route.split('/')[3];
+      const society = await db.collection('societies').findOne({ id });
+      if (!society) return handleCORS(NextResponse.json({ error: 'Society not found' }, { status: 404 }));
+      const { _id, ...societyData } = society;
+
+      const towers = await db.collection('society_towers').find({ societyId: id }).sort({ name: 1 }).toArray();
+      const flats = await db.collection('society_flats').find({ societyId: id }).toArray();
+      const residents = await db.collection('residents').find({ societyId: id }).toArray();
+
+      const totalFlats = flats.length;
+      const occupiedFlats = flats.filter(f => f.status === 'occupied').length;
+      const vacantFlats = flats.filter(f => f.status === 'vacant').length;
+
+      return handleCORS(NextResponse.json({
+        ...societyData,
+        towers: towers.map(({ _id, ...t }) => ({
+          ...t,
+          flatCount: flats.filter(f => f.towerId === t.id).length,
+          occupiedCount: flats.filter(f => f.towerId === t.id && f.status === 'occupied').length,
+        })),
+        flats: flats.map(({ _id, ...f }) => f),
+        residents: residents.map(({ _id, ...r }) => r),
+        stats: {
+          totalTowers: towers.length,
+          totalFlats,
+          occupiedFlats,
+          vacantFlats,
+          occupancyRate: totalFlats > 0 ? Math.round((occupiedFlats / totalFlats) * 100) : 0,
+          totalResidents: residents.length,
+        },
+      }));
+    }
+
+    // Society Towers CRUD
+    if (route.match(/^\/admin\/societies\/[^/]+\/towers$/) && method === 'GET') {
+      const societyId = route.split('/')[3];
+      const towers = await db.collection('society_towers').find({ societyId }).sort({ name: 1 }).toArray();
+      const flats = await db.collection('society_flats').find({ societyId }).toArray();
+      return handleCORS(NextResponse.json(towers.map(({ _id, ...t }) => ({
+        ...t,
+        flatCount: flats.filter(f => f.towerId === t.id).length,
+        occupiedCount: flats.filter(f => f.towerId === t.id && f.status === 'occupied').length,
+      }))));
+    }
+
+    if (route.match(/^\/admin\/societies\/[^/]+\/towers$/) && method === 'POST') {
+      const societyId = route.split('/')[3];
+      const body = await request.json();
+      const tower = {
+        id: uuidv4(),
+        societyId,
+        name: body.name || '',
+        totalFloors: body.totalFloors || 0,
+        flatsPerFloor: body.flatsPerFloor || 0,
+        description: body.description || '',
+        status: body.status || 'active',
+        createdAt: new Date(),
+      };
+      await db.collection('society_towers').insertOne(tower);
+
+      // Auto-generate flats if flatsPerFloor > 0
+      if (tower.totalFloors > 0 && tower.flatsPerFloor > 0) {
+        const flatsToInsert = [];
+        for (let floor = 1; floor <= tower.totalFloors; floor++) {
+          for (let flatNum = 1; flatNum <= tower.flatsPerFloor; flatNum++) {
+            flatsToInsert.push({
+              id: uuidv4(),
+              societyId,
+              towerId: tower.id,
+              towerName: tower.name,
+              flatNumber: `${floor}${String(flatNum).padStart(2, '0')}`,
+              floor: floor,
+              type: '2BHK',
+              area: '',
+              ownerName: '',
+              ownerPhone: '',
+              ownerEmail: '',
+              status: 'vacant',
+              createdAt: new Date(),
+            });
+          }
+        }
+        if (flatsToInsert.length > 0) {
+          await db.collection('society_flats').insertMany(flatsToInsert);
+        }
+      }
+
+      // Update society tower/flat counts
+      const allTowers = await db.collection('society_towers').countDocuments({ societyId });
+      const allFlats = await db.collection('society_flats').countDocuments({ societyId });
+      await db.collection('societies').updateOne({ id: societyId }, { $set: { totalTowers: allTowers, totalFlats: allFlats, updatedAt: new Date() } });
+
+      const { _id, ...towerData } = tower;
+      return handleCORS(NextResponse.json(towerData));
+    }
+
+    if (route.match(/^\/admin\/societies\/[^/]+\/towers\/[^/]+$/) && method === 'PUT') {
+      const societyId = route.split('/')[3];
+      const towerId = route.split('/')[5];
+      const body = await request.json();
+      await db.collection('society_towers').updateOne({ id: towerId, societyId }, { $set: { ...body, updatedAt: new Date() } });
+      // Update towerName on flats if name changed
+      if (body.name) {
+        await db.collection('society_flats').updateMany({ towerId }, { $set: { towerName: body.name } });
+      }
+      return handleCORS(NextResponse.json({ message: 'Tower updated', id: towerId }));
+    }
+
+    if (route.match(/^\/admin\/societies\/[^/]+\/towers\/[^/]+$/) && method === 'DELETE') {
+      const societyId = route.split('/')[3];
+      const towerId = route.split('/')[5];
+      await db.collection('society_towers').deleteOne({ id: towerId, societyId });
+      await db.collection('society_flats').deleteMany({ towerId, societyId });
+      // Update counts
+      const allTowers = await db.collection('society_towers').countDocuments({ societyId });
+      const allFlats = await db.collection('society_flats').countDocuments({ societyId });
+      await db.collection('societies').updateOne({ id: societyId }, { $set: { totalTowers: allTowers, totalFlats: allFlats, updatedAt: new Date() } });
+      return handleCORS(NextResponse.json({ message: 'Tower and its flats deleted', id: towerId }));
+    }
+
+    // Society Flats CRUD
+    if (route.match(/^\/admin\/societies\/[^/]+\/flats$/) && method === 'GET') {
+      const societyId = route.split('/')[3];
+      const url = new URL(request.url);
+      const towerId = url.searchParams.get('towerId');
+      const status = url.searchParams.get('status');
+      const type = url.searchParams.get('type');
+      const search = url.searchParams.get('search');
+
+      const query = { societyId };
+      if (towerId) query.towerId = towerId;
+      if (status) query.status = status;
+      if (type) query.type = type;
+
+      let flats = await db.collection('society_flats').find(query).sort({ towerName: 1, flatNumber: 1 }).toArray();
+
+      if (search) {
+        const q = search.toLowerCase();
+        flats = flats.filter(f =>
+          f.flatNumber?.toLowerCase().includes(q) ||
+          f.ownerName?.toLowerCase().includes(q) ||
+          f.towerName?.toLowerCase().includes(q)
+        );
+      }
+
+      return handleCORS(NextResponse.json(flats.map(({ _id, ...f }) => f)));
+    }
+
+    if (route.match(/^\/admin\/societies\/[^/]+\/flats$/) && method === 'POST') {
+      const societyId = route.split('/')[3];
+      const body = await request.json();
+      const flat = {
+        id: uuidv4(),
+        societyId,
+        towerId: body.towerId || '',
+        towerName: body.towerName || '',
+        flatNumber: body.flatNumber || '',
+        floor: body.floor || 0,
+        type: body.type || '2BHK',
+        area: body.area || '',
+        ownerName: body.ownerName || '',
+        ownerPhone: body.ownerPhone || '',
+        ownerEmail: body.ownerEmail || '',
+        status: body.status || 'vacant',
+        createdAt: new Date(),
+      };
+      await db.collection('society_flats').insertOne(flat);
+      // Update flat count
+      const allFlats = await db.collection('society_flats').countDocuments({ societyId });
+      await db.collection('societies').updateOne({ id: societyId }, { $set: { totalFlats: allFlats, updatedAt: new Date() } });
+      const { _id, ...flatData } = flat;
+      return handleCORS(NextResponse.json(flatData));
+    }
+
+    if (route.match(/^\/admin\/societies\/[^/]+\/flats\/[^/]+$/) && method === 'PUT') {
+      const societyId = route.split('/')[3];
+      const flatId = route.split('/')[5];
+      const body = await request.json();
+      await db.collection('society_flats').updateOne({ id: flatId, societyId }, { $set: { ...body, updatedAt: new Date() } });
+      return handleCORS(NextResponse.json({ message: 'Flat updated', id: flatId }));
+    }
+
+    if (route.match(/^\/admin\/societies\/[^/]+\/flats\/[^/]+$/) && method === 'DELETE') {
+      const societyId = route.split('/')[3];
+      const flatId = route.split('/')[5];
+      await db.collection('society_flats').deleteOne({ id: flatId, societyId });
+      const allFlats = await db.collection('society_flats').countDocuments({ societyId });
+      await db.collection('societies').updateOne({ id: societyId }, { $set: { totalFlats: allFlats, updatedAt: new Date() } });
+      return handleCORS(NextResponse.json({ message: 'Flat deleted', id: flatId }));
+    }
+
     if (route.match(/^\/admin\/societies\/[^/]+$/) && method === 'PUT') {
       const id = route.split('/')[3];
       const body = await request.json();
@@ -1197,8 +1390,11 @@ async function handleRoute(request, { params }) {
 
     if (route.match(/^\/admin\/societies\/[^/]+$/) && method === 'DELETE') {
       const id = route.split('/')[3];
+      // Also delete associated towers and flats
+      await db.collection('society_towers').deleteMany({ societyId: id });
+      await db.collection('society_flats').deleteMany({ societyId: id });
       await db.collection('societies').deleteOne({ id });
-      return handleCORS(NextResponse.json({ message: 'Society deleted', id }));
+      return handleCORS(NextResponse.json({ message: 'Society and all associated data deleted', id }));
     }
 
     // Admin Users CRUD
