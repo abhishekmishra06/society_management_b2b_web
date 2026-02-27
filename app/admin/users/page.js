@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { Users, Plus, Search, RefreshCw, Edit, Trash2, KeyRound, Shield } from 'lucide-react';
+import { Users, Plus, Search, RefreshCw, Edit, Trash2, Filter, X, Building2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -25,10 +25,12 @@ export default function AdminUsersPage() {
   const [selected, setSelected] = useState(null);
   const [search, setSearch] = useState('');
   const [filterRole, setFilterRole] = useState('all');
+  const [filterSociety, setFilterSociety] = useState('all');
+  const [showFilters, setShowFilters] = useState(false);
   const [form, setForm] = useState({ name: '', userId: '', password: '', email: '', phone: '', role: 'SOCIETY_ADMIN', societyId: '', permissions: [] });
   const [errors, setErrors] = useState({});
 
-  const fetch = async () => {
+  const fetchData = async () => {
     setLoading(true);
     try {
       const [uRes, sRes] = await Promise.all([apiClient.get('/admin/users'), apiClient.get('/admin/societies')]);
@@ -37,7 +39,7 @@ export default function AdminUsersPage() {
     finally { setLoading(false); }
   };
 
-  useEffect(() => { fetch(); }, []);
+  useEffect(() => { fetchData(); }, []);
 
   const resetForm = () => { setForm({ name: '', userId: '', password: '', email: '', phone: '', role: 'SOCIETY_ADMIN', societyId: '', permissions: [] }); setErrors({}); };
 
@@ -53,7 +55,7 @@ export default function AdminUsersPage() {
     try {
       const perms = form.role === 'SUPER_ADMIN' ? ['FULL_ACCESS'] : form.permissions.length ? form.permissions : ['FULL_ACCESS'];
       await apiClient.post('/admin/users', { ...form, permissions: perms });
-      toast.success('User created!'); setAddOpen(false); resetForm(); fetch();
+      toast.success('User created!'); setAddOpen(false); resetForm(); fetchData();
     } catch (err) { toast.error(err.response?.data?.message || 'Failed to create user'); }
   };
 
@@ -69,25 +71,37 @@ export default function AdminUsersPage() {
       const updateData = { name: form.name, email: form.email, phone: form.phone, role: form.role, societyId: form.societyId, permissions: form.role === 'SUPER_ADMIN' ? ['FULL_ACCESS'] : form.permissions };
       if (form.password) updateData.password = form.password;
       await apiClient.put(`/admin/users/${selected.id}`, updateData);
-      toast.success('User updated!'); setEditOpen(false); resetForm(); fetch();
+      toast.success('User updated!'); setEditOpen(false); resetForm(); fetchData();
     } catch (err) { toast.error('Failed to update user'); }
   };
 
   const handleDelete = async () => {
     try {
       await apiClient.delete(`/admin/users/${selected.id}`);
-      toast.success('User deleted!'); setDeleteOpen(false); fetch();
+      toast.success('User deleted!'); setDeleteOpen(false); fetchData();
     } catch (err) { toast.error('Failed to delete'); }
   };
 
   const filtered = users.filter(u => {
     const q = search.toLowerCase();
-    const matchSearch = !search || u.name?.toLowerCase().includes(q) || u.userId?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q);
+    const matchSearch = !search || u.name?.toLowerCase().includes(q) || u.userId?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q) || u.phone?.toLowerCase().includes(q);
     const matchRole = filterRole === 'all' || u.role === filterRole;
-    return matchSearch && matchRole;
+    const matchSociety = filterSociety === 'all' || u.societyId === filterSociety;
+    return matchSearch && matchRole && matchSociety;
   });
 
+  const activeFilters = [filterRole !== 'all', filterSociety !== 'all'].filter(Boolean).length;
+  const clearFilters = () => { setFilterRole('all'); setFilterSociety('all'); setSearch(''); };
+
   const getSocietyName = (id) => societies.find(s => s.id === id)?.name || '-';
+
+  const roleColorMap = {
+    'SUPER_ADMIN': { bg: BRAND, text: '#fff' },
+    'SOCIETY_ADMIN': { bg: '#3b82f6', text: '#fff' },
+    'STAFF': { bg: '#10b981', text: '#fff' },
+    'VENDOR': { bg: '#f59e0b', text: '#fff' },
+    'RESIDENT': { bg: '#6b7280', text: '#fff' },
+  };
 
   const UserForm = ({ onSubmit, label, isEdit }) => (
     <form onSubmit={onSubmit} className="space-y-4">
@@ -112,7 +126,7 @@ export default function AdminUsersPage() {
         <div className="space-y-2">
           <Label>Role</Label>
           <select className="w-full p-2 border rounded-md" value={form.role} onChange={e => setForm({...form, role: e.target.value})}>
-            {ROLES.map(r => <option key={r} value={r}>{r.replace('_', ' ')}</option>)}
+            {ROLES.map(r => <option key={r} value={r}>{r.replace(/_/g, ' ')}</option>)}
           </select>
         </div>
       </div>
@@ -171,7 +185,7 @@ export default function AdminUsersPage() {
           <p className="text-gray-500 mt-1">Manage all users across societies</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="icon" onClick={fetch}><RefreshCw className="h-4 w-4" /></Button>
+          <Button variant="outline" size="icon" onClick={fetchData}><RefreshCw className="h-4 w-4" /></Button>
           <Dialog open={addOpen} onOpenChange={o => { setAddOpen(o); if (!o) resetForm(); }}>
             <DialogTrigger asChild><Button style={{ backgroundColor: BRAND }} className="text-white"><Plus className="h-4 w-4 mr-2" />Add User</Button></DialogTrigger>
             <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
@@ -182,61 +196,129 @@ export default function AdminUsersPage() {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-3">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <Input placeholder="Search users..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
+      {/* Search + Filters */}
+      <div className="space-y-3">
+        <div className="flex flex-wrap gap-3">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input placeholder="Search by name, login ID, email, phone..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
+          </div>
+          <Button
+            variant={showFilters ? 'default' : 'outline'}
+            onClick={() => setShowFilters(!showFilters)}
+            className={showFilters ? 'text-white' : ''}
+            style={showFilters ? { backgroundColor: BRAND } : {}}
+          >
+            <Filter className="h-4 w-4 mr-2" />
+            Filters {activeFilters > 0 && <Badge className="ml-2 bg-white text-gray-900 text-xs">{activeFilters}</Badge>}
+          </Button>
+          {activeFilters > 0 && (
+            <Button variant="ghost" size="sm" onClick={clearFilters} className="text-red-500">
+              <X className="h-4 w-4 mr-1" /> Clear
+            </Button>
+          )}
         </div>
-        <select className="p-2 border rounded-md text-sm" value={filterRole} onChange={e => setFilterRole(e.target.value)}>
-          <option value="all">All Roles</option>
-          {ROLES.map(r => <option key={r} value={r}>{r.replace('_', ' ')}</option>)}
-        </select>
+
+        {showFilters && (
+          <Card className="border-dashed">
+            <CardContent className="pt-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label className="text-xs text-gray-500">Role</Label>
+                  <select className="w-full p-2 border rounded-md text-sm" value={filterRole} onChange={e => setFilterRole(e.target.value)}>
+                    <option value="all">All Roles</option>
+                    {ROLES.map(r => <option key={r} value={r}>{r.replace(/_/g, ' ')}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-gray-500">Society</Label>
+                  <select className="w-full p-2 border rounded-md text-sm" value={filterSociety} onChange={e => setFilterSociety(e.target.value)}>
+                    <option value="all">All Societies</option>
+                    {societies.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      {/* Stats Row */}
+      <div className="grid grid-cols-5 gap-3">
+        {ROLES.map(role => {
+          const count = users.filter(u => u.role === role).length;
+          const rc = roleColorMap[role] || { bg: '#6b7280', text: '#fff' };
+          return (
+            <Card key={role} className="cursor-pointer hover:shadow-sm transition" onClick={() => { setFilterRole(role); setShowFilters(true); }}>
+              <CardContent className="pt-3 pb-3 text-center">
+                <p className="text-xs text-gray-500">{role.replace(/_/g, ' ')}</p>
+                <p className="text-2xl font-bold" style={{ color: rc.bg }}>{count}</p>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
       <Card>
-        <CardHeader><CardTitle>All Users ({filtered.length})</CardTitle></CardHeader>
+        <CardHeader><CardTitle>Users ({filtered.length})</CardTitle></CardHeader>
         <CardContent>
           {loading ? <div className="text-center py-8">Loading...</div> : filtered.length === 0 ? (
             <div className="text-center py-12"><Users className="h-12 w-12 mx-auto text-gray-300 mb-4" /><p className="text-gray-400">No users found</p></div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Login ID</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Society</TableHead>
-                  <TableHead>Permissions</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.map(u => (
-                  <TableRow key={u.id}>
-                    <TableCell className="font-medium">{u.name || u.userId}</TableCell>
-                    <TableCell className="font-mono text-xs">{u.userId}</TableCell>
-                    <TableCell><Badge style={u.role === 'SUPER_ADMIN' ? { backgroundColor: BRAND, color: '#fff' } : {}} variant={u.role === 'SUPER_ADMIN' ? 'default' : 'outline'}>{u.role}</Badge></TableCell>
-                    <TableCell className="text-xs">{u.email || '-'}</TableCell>
-                    <TableCell className="text-xs">{getSocietyName(u.societyId)}</TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        {(u.permissions || []).includes('FULL_ACCESS') ? (
-                          <Badge className="text-xs" style={{ backgroundColor: '#10b981', color: '#fff' }}>Full Access</Badge>
-                        ) : (u.permissions || []).slice(0, 3).map(p => <Badge key={p} variant="outline" className="text-[10px] capitalize">{p}</Badge>)}
-                        {(u.permissions || []).length > 3 && <Badge variant="outline" className="text-[10px]">+{u.permissions.length - 3}</Badge>}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-1">
-                        <Button size="sm" variant="outline" onClick={() => handleEditOpen(u)}><Edit className="h-3 w-3" /></Button>
-                        <Button size="sm" variant="outline" className="text-red-500" onClick={() => { setSelected(u); setDeleteOpen(true); }}><Trash2 className="h-3 w-3" /></Button>
-                      </div>
-                    </TableCell>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Login ID</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Phone</TableHead>
+                    <TableHead>Society</TableHead>
+                    <TableHead>Permissions</TableHead>
+                    <TableHead>Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {filtered.map(u => {
+                    const rc = roleColorMap[u.role] || { bg: '#6b7280', text: '#fff' };
+                    return (
+                      <TableRow key={u.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <div className="h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0" style={{ backgroundColor: rc.bg }}>
+                              {(u.name || u.userId || 'U').charAt(0).toUpperCase()}
+                            </div>
+                            <span className="font-medium">{u.name || u.userId}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="font-mono text-xs">{u.userId}</TableCell>
+                        <TableCell>
+                          <Badge style={{ backgroundColor: rc.bg, color: rc.text }}>{u.role?.replace(/_/g, ' ')}</Badge>
+                        </TableCell>
+                        <TableCell className="text-xs">{u.email || '-'}</TableCell>
+                        <TableCell className="text-xs">{u.phone || '-'}</TableCell>
+                        <TableCell className="text-xs">{getSocietyName(u.societyId)}</TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                            {(u.permissions || []).includes('FULL_ACCESS') ? (
+                              <Badge className="text-xs bg-green-500 text-white">Full Access</Badge>
+                            ) : (u.permissions || []).slice(0, 2).map(p => <Badge key={p} variant="outline" className="text-[10px] capitalize">{p}</Badge>)}
+                            {(u.permissions || []).length > 2 && !u.permissions.includes('FULL_ACCESS') && <Badge variant="outline" className="text-[10px]">+{u.permissions.length - 2}</Badge>}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            <Button size="sm" variant="outline" onClick={() => handleEditOpen(u)}><Edit className="h-3 w-3" /></Button>
+                            <Button size="sm" variant="outline" className="text-red-500" onClick={() => { setSelected(u); setDeleteOpen(true); }}><Trash2 className="h-3 w-3" /></Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>
