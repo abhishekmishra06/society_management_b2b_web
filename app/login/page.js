@@ -29,8 +29,8 @@ export default function LoginPage() {
       // Store auth data
       localStorage.setItem('authToken', data.token);
       localStorage.setItem('userData', JSON.stringify(data.user));
-      localStorage.setItem('societyId', data.user.societyId);
-      localStorage.setItem('userPermissions', JSON.stringify(data.permissions || ['FULL_ACCESS']));
+      localStorage.setItem('societyId', data.user.societyId || '');
+      localStorage.setItem('userPermissions', JSON.stringify(data.user.permissions || ['FULL_ACCESS']));
       
       // Track first login for welcome guide
       if (data.isFirstLogin) {
