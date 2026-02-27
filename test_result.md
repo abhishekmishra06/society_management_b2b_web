@@ -614,8 +614,60 @@ frontend:
           agent: "main"
           comment: "Rewritten with Add Slot dialog (slot number, type, status, vehicle, flat), stats cards, search, grid display. Verified via screenshot."
 
+  - task: "Society Profile API - GET society with towers, flats, stats"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: true
+          agent: "main"
+          comment: "GET /admin/societies/{id}/profile endpoint returns society data with towers, flats, residents, and stats. Verified via UI screenshot showing society profile page with tabs."
+
+  - task: "Society Towers CRUD API"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: true
+          agent: "main"
+          comment: "GET/POST/PUT/DELETE /admin/societies/{id}/towers endpoints implemented. POST auto-generates flats when totalFloors and flatsPerFloor provided. Verified tower cards visible in UI."
+
+  - task: "Society Flats CRUD API"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: true
+          agent: "main"
+          comment: "GET/POST/PUT/DELETE /admin/societies/{id}/flats endpoints implemented with filters (towerId, status, type, search). Flat creation includes owner details."
+
+  - task: "Enhanced Society Creation with extra fields"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: true
+          agent: "main"
+          comment: "POST /admin/societies now accepts societyType, description, establishedYear, builderName, amenities, billingPeriod, maintenanceAmount, status fields."
+
 test_plan:
-  current_focus: []
+  current_focus:
+    - "Society Profile API - GET society with towers, flats, stats"
+    - "Society Towers CRUD API"
+    - "Society Flats CRUD API"
+    - "Enhanced Society Creation with extra fields"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
