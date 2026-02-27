@@ -1,8 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { UsersRound, Plus, Search, RefreshCw, Edit, Trash2, UserPlus } from 'lucide-react';
+import { UsersRound, Plus, Search, RefreshCw, Edit, Trash2, UserPlus, Filter, X } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,6 +24,9 @@ export default function TeamsPage() {
   const [memberOpen, setMemberOpen] = useState(false);
   const [selected, setSelected] = useState(null);
   const [search, setSearch] = useState('');
+  const [filterSociety, setFilterSociety] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [showFilters, setShowFilters] = useState(false);
   const [form, setForm] = useState({ name: '', description: '', societyId: '', permissions: [] });
   const [memberUserId, setMemberUserId] = useState('');
   const [errors, setErrors] = useState({});
@@ -83,8 +85,14 @@ export default function TeamsPage() {
 
   const filtered = teams.filter(t => {
     const q = search.toLowerCase();
-    return !search || t.name?.toLowerCase().includes(q) || t.description?.toLowerCase().includes(q);
+    const matchSearch = !search || t.name?.toLowerCase().includes(q) || t.description?.toLowerCase().includes(q);
+    const matchSociety = filterSociety === 'all' || t.societyId === filterSociety;
+    const matchStatus = filterStatus === 'all' || t.status === filterStatus;
+    return matchSearch && matchSociety && matchStatus;
   });
+
+  const activeFilters = [filterSociety !== 'all', filterStatus !== 'all'].filter(Boolean).length;
+  const clearFilters = () => { setFilterSociety('all'); setFilterStatus('all'); setSearch(''); };
 
   const getUserName = (id) => users.find(u => u.id === id)?.name || id;
   const getSocietyName = (id) => societies.find(s => s.id === id)?.name || '-';
@@ -152,47 +160,119 @@ export default function TeamsPage() {
         </div>
       </div>
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-        <Input placeholder="Search teams..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
+      {/* Search + Filters */}
+      <div className="space-y-3">
+        <div className="flex flex-wrap gap-3">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input placeholder="Search teams..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
+          </div>
+          <Button
+            variant={showFilters ? 'default' : 'outline'}
+            onClick={() => setShowFilters(!showFilters)}
+            className={showFilters ? 'text-white' : ''}
+            style={showFilters ? { backgroundColor: BRAND } : {}}
+          >
+            <Filter className="h-4 w-4 mr-2" />
+            Filters {activeFilters > 0 && <Badge className="ml-2 bg-white text-gray-900 text-xs">{activeFilters}</Badge>}
+          </Button>
+          {activeFilters > 0 && (
+            <Button variant="ghost" size="sm" onClick={clearFilters} className="text-red-500">
+              <X className="h-4 w-4 mr-1" /> Clear
+            </Button>
+          )}
+        </div>
+
+        {showFilters && (
+          <Card className="border-dashed">
+            <CardContent className="pt-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label className="text-xs text-gray-500">Society</Label>
+                  <select className="w-full p-2 border rounded-md text-sm" value={filterSociety} onChange={e => setFilterSociety(e.target.value)}>
+                    <option value="all">All Societies</option>
+                    {societies.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-gray-500">Status</Label>
+                  <select className="w-full p-2 border rounded-md text-sm" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+                    <option value="all">All Status</option>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-4">
+        <Card className="bg-gradient-to-br from-purple-50 to-white">
+          <CardContent className="pt-3 pb-3 text-center">
+            <p className="text-xs text-gray-500">Total Teams</p>
+            <p className="text-2xl font-bold" style={{ color: BRAND }}>{teams.length}</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-gradient-to-br from-green-50 to-white">
+          <CardContent className="pt-3 pb-3 text-center">
+            <p className="text-xs text-gray-500">Active</p>
+            <p className="text-2xl font-bold text-green-600">{teams.filter(t => t.status === 'active').length}</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-gradient-to-br from-blue-50 to-white">
+          <CardContent className="pt-3 pb-3 text-center">
+            <p className="text-xs text-gray-500">Total Members</p>
+            <p className="text-2xl font-bold text-blue-600">{teams.reduce((acc, t) => acc + (t.members || []).length, 0)}</p>
+          </CardContent>
+        </Card>
       </div>
 
       <Card>
-        <CardHeader><CardTitle>All Teams ({filtered.length})</CardTitle></CardHeader>
+        <CardHeader><CardTitle>Teams ({filtered.length})</CardTitle></CardHeader>
         <CardContent>
           {loading ? <div className="text-center py-8">Loading...</div> : filtered.length === 0 ? (
             <div className="text-center py-12"><UsersRound className="h-12 w-12 mx-auto text-gray-300 mb-4" /><p className="text-gray-400">No teams found</p></div>
           ) : (
             <div className="space-y-4">
               {filtered.map(team => (
-                <Card key={team.id} className="border">
+                <Card key={team.id} className="border hover:shadow-sm transition">
                   <CardContent className="pt-4">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-semibold text-lg">{team.name}</h3>
-                          <Badge variant="outline">{team.status || 'active'}</Badge>
-                        </div>
-                        {team.description && <p className="text-sm text-gray-500 mb-2">{team.description}</p>}
-                        <p className="text-xs text-gray-400">Society: {getSocietyName(team.societyId)}</p>
-
-                        {/* Permissions */}
-                        <div className="mt-3">
-                          <p className="text-xs font-medium text-gray-500 mb-1">Permissions:</p>
-                          <div className="flex flex-wrap gap-1">
-                            {(team.permissions || []).length > 0 ? (team.permissions || []).map(p => (
-                              <Badge key={p} variant="outline" className="text-[10px] capitalize">{p}</Badge>
-                            )) : <span className="text-xs text-gray-400">No permissions set</span>}
+                          <div className="h-10 w-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: BRAND + '15' }}>
+                            <UsersRound className="h-5 w-5" style={{ color: BRAND }} />
+                          </div>
+                          <div>
+                            <h3 className="font-semibold text-lg">{team.name}</h3>
+                            <div className="flex items-center gap-2">
+                              <Badge variant={team.status === 'active' ? 'default' : 'secondary'}
+                                className={`text-xs ${team.status === 'active' ? 'bg-green-500' : ''}`}>{team.status || 'active'}</Badge>
+                              {team.societyId && <span className="text-xs text-gray-400">{getSocietyName(team.societyId)}</span>}
+                            </div>
                           </div>
                         </div>
+                        {team.description && <p className="text-sm text-gray-500 mt-2 ml-12">{team.description}</p>}
 
-                        {/* Members */}
-                        <div className="mt-3">
-                          <p className="text-xs font-medium text-gray-500 mb-1">Members ({(team.members || []).length}):</p>
-                          <div className="flex flex-wrap gap-1">
-                            {(team.members || []).length > 0 ? (team.members || []).map(m => (
-                              <Badge key={m} className="text-xs">{getUserName(m)}</Badge>
-                            )) : <span className="text-xs text-gray-400">No members yet</span>}
+                        <div className="mt-3 ml-12 flex gap-8">
+                          <div>
+                            <p className="text-xs font-medium text-gray-500 mb-1">Permissions:</p>
+                            <div className="flex flex-wrap gap-1">
+                              {(team.permissions || []).length > 0 ? (team.permissions || []).map(p => (
+                                <Badge key={p} variant="outline" className="text-[10px] capitalize">{p}</Badge>
+                              )) : <span className="text-xs text-gray-400">No permissions set</span>}
+                            </div>
+                          </div>
+                          <div>
+                            <p className="text-xs font-medium text-gray-500 mb-1">Members ({(team.members || []).length}):</p>
+                            <div className="flex flex-wrap gap-1">
+                              {(team.members || []).length > 0 ? (team.members || []).map(m => (
+                                <Badge key={m} className="text-xs" style={{ backgroundColor: BRAND }}>{getUserName(m)}</Badge>
+                              )) : <span className="text-xs text-gray-400">No members yet</span>}
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -229,7 +309,7 @@ export default function TeamsPage() {
               <select className="w-full p-2 border rounded-md" value={memberUserId} onChange={e => setMemberUserId(e.target.value)}>
                 <option value="">-- Select User --</option>
                 {users.filter(u => !(selected?.members || []).includes(u.id)).map(u => (
-                  <option key={u.id} value={u.id}>{u.name || u.userId} ({u.role})</option>
+                  <option key={u.id} value={u.id}>{u.name || u.userId} ({u.role?.replace(/_/g, ' ')})</option>
                 ))}
               </select>
             </div>
