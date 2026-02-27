@@ -1180,7 +1180,14 @@ async function handleRoute(request, { params }) {
         registrationNo: body.registrationNo || '',
         totalTowers: body.totalTowers || 0,
         totalFlats: body.totalFlats || 0,
-        status: 'active',
+        societyType: body.societyType || 'residential',
+        description: body.description || '',
+        establishedYear: body.establishedYear || '',
+        builderName: body.builderName || '',
+        amenities: body.amenities || [],
+        billingPeriod: body.billingPeriod || 'monthly',
+        maintenanceAmount: body.maintenanceAmount || '',
+        status: body.status || 'active',
         createdAt: new Date(),
       };
       await db.collection('societies').insertOne(society);
