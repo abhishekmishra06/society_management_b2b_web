@@ -54,7 +54,7 @@ export default function SocietyProfilePage() {
   const fetchProfile = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await apiClient.get(`/admin/societies/${societyId}/profile`);
+      const { data } = await apiClient.get(`/admin/societies/${societyId}?profile=full`);
       setSociety(data);
       setTowers(data.towers || []);
       setFlats(data.flats || []);
