@@ -33,7 +33,7 @@ export default function LoginPage() {
       localStorage.setItem('userPermissions', JSON.stringify(data.user.permissions || ['FULL_ACCESS']));
       
       // Track first login for welcome guide
-      if (data.isFirstLogin) {
+      if (data.user.isFirstLogin) {
         localStorage.setItem('isFirstLogin', 'true');
         localStorage.removeItem('welcomeGuideSeen');
       }
