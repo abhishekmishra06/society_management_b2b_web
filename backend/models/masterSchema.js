@@ -24,12 +24,12 @@ export async function initMasterDB() {
   await pool.execute(`CREATE TABLE IF NOT EXISTS societies (
     id VARCHAR(36) PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
-    address TEXT DEFAULT '', city VARCHAR(100) DEFAULT '', state VARCHAR(100) DEFAULT '',
+    address TEXT, city VARCHAR(100) DEFAULT '', state VARCHAR(100) DEFAULT '',
     pincode VARCHAR(20) DEFAULT '', phone VARCHAR(50) DEFAULT '', email VARCHAR(255) DEFAULT '',
     registrationNo VARCHAR(100) DEFAULT '', totalTowers INT DEFAULT 0, totalFlats INT DEFAULT 0,
     societyType ENUM('residential','commercial','mixed') DEFAULT 'residential',
-    description TEXT DEFAULT '', establishedYear VARCHAR(10) DEFAULT '',
-    builderName VARCHAR(255) DEFAULT '', amenities JSON DEFAULT NULL,
+    description TEXT, establishedYear VARCHAR(10) DEFAULT '',
+    builderName VARCHAR(255) DEFAULT '', amenities JSON,
     billingPeriod ENUM('monthly','quarterly','yearly') DEFAULT 'monthly',
     maintenanceAmount VARCHAR(50) DEFAULT '',
     status ENUM('active','inactive') DEFAULT 'active',
@@ -41,7 +41,7 @@ export async function initMasterDB() {
 
   await pool.execute(`CREATE TABLE IF NOT EXISTS teams (
     id VARCHAR(36) PRIMARY KEY, societyId VARCHAR(36) DEFAULT NULL,
-    name VARCHAR(255) NOT NULL, description TEXT DEFAULT '',
+    name VARCHAR(255) NOT NULL, description TEXT,
     permissions JSON DEFAULT NULL, status ENUM('active','inactive') DEFAULT 'active',
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
     updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -57,7 +57,7 @@ export async function initMasterDB() {
 
   await pool.execute(`CREATE TABLE IF NOT EXISTS notifications (
     id VARCHAR(36) PRIMARY KEY, societyId VARCHAR(36) DEFAULT NULL,
-    title VARCHAR(255) NOT NULL, body TEXT DEFAULT '',
+    title VARCHAR(255) NOT NULL, body TEXT,
     type VARCHAR(50) DEFAULT 'general', targetUserId VARCHAR(36) DEFAULT NULL,
     sentBy VARCHAR(36) DEFAULT NULL, isRead BOOLEAN DEFAULT FALSE,
     fcmMessageId VARCHAR(255) DEFAULT NULL,

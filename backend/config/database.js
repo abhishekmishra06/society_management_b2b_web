@@ -7,8 +7,8 @@ export function getMasterPool() {
     pools._master = mysql.createPool({
       host: process.env.MYSQL_HOST || 'localhost',
       user: process.env.MYSQL_USER || 'root',
-      password: process.env.MYSQL_PASSWORD || 'root123',
-      database: process.env.MYSQL_MASTER_DB || 'society_master',
+      password: process.env.MYSQL_PASSWORD || 'Macbook@1980',
+      database: process.env.MYSQL_MASTER_DB || 'mytower',
       port: parseInt(process.env.MYSQL_PORT || '3306'),
       waitForConnections: true,
       connectionLimit: 20,
@@ -25,7 +25,7 @@ export function getSocietyPool(societyId) {
     pools[dbName] = mysql.createPool({
       host: process.env.MYSQL_HOST || 'localhost',
       user: process.env.MYSQL_USER || 'root',
-      password: process.env.MYSQL_PASSWORD || 'root123',
+      password: process.env.MYSQL_PASSWORD || 'Macbook@1980',
       database: dbName,
       port: parseInt(process.env.MYSQL_PORT || '3306'),
       waitForConnections: true,
@@ -41,7 +41,7 @@ export async function getRawConnection() {
   return mysql.createConnection({
     host: process.env.MYSQL_HOST || 'localhost',
     user: process.env.MYSQL_USER || 'root',
-    password: process.env.MYSQL_PASSWORD || 'root123',
+    password: process.env.MYSQL_PASSWORD || 'Macbook@1980',
     port: parseInt(process.env.MYSQL_PORT || '3306'),
   });
 }

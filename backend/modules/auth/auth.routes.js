@@ -8,6 +8,9 @@ const router = Router();
 
 // POST /api/auth/login
 router.post('/login', async (req, res) => {
+
+
+  console.log('[Auth] Login attempt:', req.body);
   try {
     const pool = getMasterPool();
     const { userId, email, password } = req.body;

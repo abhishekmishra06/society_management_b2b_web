@@ -19,12 +19,18 @@ export default function LoginPage() {
   });
   const [loading, setLoading] = useState(false);
 
+ 
+
   const handleLogin = async (e) => {
+    console.log("HANDLE LOGIN TRIGGERED");
     e.preventDefault();
     setLoading(true);
 
     try {
       const { data } = await apiClient.post(API_ENDPOINTS.LOGIN, formData);
+      
+
+      console.log('Login response:', data);
       
       // Store auth data
       localStorage.setItem('authToken', data.token);

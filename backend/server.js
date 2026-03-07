@@ -33,7 +33,7 @@ import documentsRoutes from './modules/documents/documents.routes.js';
 import moveRequestsRoutes from './modules/move-requests/moveRequests.routes.js';
 
 const app = express();
-const PORT = process.env.BACKEND_PORT || 5000;
+const PORT = process.env.BACKEND_PORT || 5001;
 
 // Middleware
 app.use(cors({
