@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 const JWT_SECRET = process.env.JWT_SECRET || 'society-management-secret-key-2025';
 
 export function generateToken(user) {
-  return jwt.sign({ id: user.id, userId: user.userId, role: user.role, societyId: user.societyId }, JWT_SECRET, { expiresIn: '7d' });
+  return jwt.sign({ id: user.id, userId: user.userId, name: user.name, role: user.role, societyId: user.societyId }, JWT_SECRET, { expiresIn: '7d' });
 }
 
 export function authMiddleware(req, res, next) {

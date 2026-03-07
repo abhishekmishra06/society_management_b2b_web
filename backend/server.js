@@ -2,17 +2,20 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
+import { createServer } from 'http';
 import { initMasterDB } from './models/masterSchema.js';
 import { authMiddleware } from './middleware/auth.js';
 import { societyContext, requireSociety } from './middleware/societyContext.js';
 import { getSocietyPool } from './config/database.js';
 import { v4 as uuidv4 } from 'uuid';
 import { buildUpdateQuery } from './utils/helpers.js';
+import { setupWebSocket } from './modules/websocket/socket.js';
 
 // Module routes
 import authRoutes from './modules/auth/auth.routes.js';
 import usersRoutes from './modules/auth/users.routes.js';
-import adminRoutes from './modules/admin/admin.routes.js';
+import adminRoutes from './modules/admin/index.js';
+import userAppRoutes from './modules/userApp/index.js';
 import notificationRoutes from './modules/notifications/notifications.routes.js';
 import dashboardRoutes from './modules/dashboard/dashboard.routes.js';
 import towersRoutes from './modules/towers/towers.routes.js';
@@ -33,7 +36,16 @@ import documentsRoutes from './modules/documents/documents.routes.js';
 import moveRequestsRoutes from './modules/move-requests/moveRequests.routes.js';
 
 const app = express();
+<<<<<<< HEAD
 const PORT = process.env.BACKEND_PORT || 5001;
+=======
+const httpServer = createServer(app);
+const PORT = process.env.BACKEND_PORT || 5000;
+>>>>>>> 34869be (auto-commit for 32274956-360b-4f44-bd83-658489297704)
+
+// Setup WebSocket
+const io = setupWebSocket(httpServer);
+app.set('io', io);
 
 // Middleware
 app.use(cors({
@@ -51,17 +63,18 @@ app.get('/api/health', (req, res) => res.json({
   status: 'ok',
   service: 'society-management-backend',
   database: 'mysql',
-  architecture: 'multi-tenant'
+  architecture: 'multi-tenant',
+  websocket: true,
 }));
 
 // ===== AUTH MODULE =====
 app.use('/api/auth', authRoutes);
 
-// ===== USER MODULE =====
+// ===== LEGACY USER ROUTES (for backward compat) =====
 app.use('/api/users', usersRoutes);
-app.use('/api/user', usersRoutes);
+app.use('/api/user', userAppRoutes);
 
-// ===== ADMIN MODULE (Super Admin) =====
+// ===== ADMIN MODULE (Super Admin) - Split into individual files =====
 app.use('/api/admin', adminRoutes);
 
 // ===== NOTIFICATION MODULE =====
@@ -148,18 +161,13 @@ app.use('/api/residents', requireSociety, residentsRoutes);
 app.get('/api/owners', requireSociety, async (req, res) => {
   try {
     const pool = getSocietyPool(req.societyId);
-    let q = 'SELECT * FROM residents WHERE type="owner"';
-    const p = [];
-    if (req.query.search) {
-      q += ' AND (name LIKE ? OR flatNumber LIKE ? OR phone LIKE ?)';
-      const s = `%${req.query.search}%`; p.push(s, s, s);
-    }
+    let q = 'SELECT * FROM residents WHERE type="owner"'; const p = [];
+    if (req.query.search) { q += ' AND (name LIKE ? OR flatNumber LIKE ? OR phone LIKE ?)'; const s = `%${req.query.search}%`; p.push(s, s, s); }
     q += ' ORDER BY createdAt DESC';
     const [rows] = await pool.execute(q, p);
     res.json(rows);
   } catch (error) { res.status(500).json({ error: error.message }); }
 });
-
 app.get('/api/owners/:id', requireSociety, async (req, res) => {
   try {
     const pool = getSocietyPool(req.societyId);
@@ -168,7 +176,6 @@ app.get('/api/owners/:id', requireSociety, async (req, res) => {
     res.json(rows[0]);
   } catch (error) { res.status(500).json({ error: error.message }); }
 });
-
 app.post('/api/owners', requireSociety, async (req, res) => {
   try {
     const pool = getSocietyPool(req.societyId);
@@ -185,7 +192,6 @@ app.post('/api/owners', requireSociety, async (req, res) => {
     res.json(rows[0]);
   } catch (error) { res.status(500).json({ error: error.message }); }
 });
-
 app.put('/api/owners/:id', requireSociety, async (req, res) => {
   try {
     const pool = getSocietyPool(req.societyId);
@@ -199,18 +205,13 @@ app.put('/api/owners/:id', requireSociety, async (req, res) => {
 app.get('/api/tenants', requireSociety, async (req, res) => {
   try {
     const pool = getSocietyPool(req.societyId);
-    let q = 'SELECT * FROM residents WHERE type="tenant"';
-    const p = [];
-    if (req.query.search) {
-      q += ' AND (name LIKE ? OR flatNumber LIKE ? OR phone LIKE ?)';
-      const s = `%${req.query.search}%`; p.push(s, s, s);
-    }
+    let q = 'SELECT * FROM residents WHERE type="tenant"'; const p = [];
+    if (req.query.search) { q += ' AND (name LIKE ? OR flatNumber LIKE ? OR phone LIKE ?)'; const s = `%${req.query.search}%`; p.push(s, s, s); }
     q += ' ORDER BY createdAt DESC';
     const [rows] = await pool.execute(q, p);
     res.json(rows);
   } catch (error) { res.status(500).json({ error: error.message }); }
 });
-
 app.get('/api/tenants/:id', requireSociety, async (req, res) => {
   try {
     const pool = getSocietyPool(req.societyId);
@@ -219,7 +220,6 @@ app.get('/api/tenants/:id', requireSociety, async (req, res) => {
     res.json(rows[0]);
   } catch (error) { res.status(500).json({ error: error.message }); }
 });
-
 app.post('/api/tenants', requireSociety, async (req, res) => {
   try {
     const pool = getSocietyPool(req.societyId);
@@ -232,7 +232,6 @@ app.post('/api/tenants', requireSociety, async (req, res) => {
     res.json(rows[0]);
   } catch (error) { res.status(500).json({ error: error.message }); }
 });
-
 app.put('/api/tenants/:id', requireSociety, async (req, res) => {
   try {
     const pool = getSocietyPool(req.societyId);
@@ -242,22 +241,17 @@ app.put('/api/tenants/:id', requireSociety, async (req, res) => {
   } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
-// Vehicles (from parking with occupied vehicles)
+// Vehicles
 app.get('/api/vehicles', requireSociety, async (req, res) => {
   try {
     const pool = getSocietyPool(req.societyId);
-    let q = 'SELECT * FROM parking WHERE vehicleNumber IS NOT NULL AND vehicleNumber != ""';
-    const p = [];
-    if (req.query.search) {
-      q += ' AND (vehicleNumber LIKE ? OR ownerName LIKE ? OR flatNumber LIKE ?)';
-      const s = `%${req.query.search}%`; p.push(s, s, s);
-    }
+    let q = 'SELECT * FROM parking WHERE vehicleNumber IS NOT NULL AND vehicleNumber != ""'; const p = [];
+    if (req.query.search) { q += ' AND (vehicleNumber LIKE ? OR ownerName LIKE ? OR flatNumber LIKE ?)'; const s = `%${req.query.search}%`; p.push(s, s, s); }
     q += ' ORDER BY createdAt DESC';
     const [rows] = await pool.execute(q, p);
     res.json(rows);
   } catch (error) { res.status(500).json({ error: error.message }); }
 });
-
 app.get('/api/vehicles/:id', requireSociety, async (req, res) => {
   try {
     const pool = getSocietyPool(req.societyId);
@@ -266,7 +260,6 @@ app.get('/api/vehicles/:id', requireSociety, async (req, res) => {
     res.json(rows[0]);
   } catch (error) { res.status(500).json({ error: error.message }); }
 });
-
 app.post('/api/vehicles', requireSociety, async (req, res) => {
   try {
     const pool = getSocietyPool(req.societyId);
@@ -279,7 +272,6 @@ app.post('/api/vehicles', requireSociety, async (req, res) => {
     res.json(rows[0]);
   } catch (error) { res.status(500).json({ error: error.message }); }
 });
-
 app.put('/api/vehicles/:id', requireSociety, async (req, res) => {
   try {
     const pool = getSocietyPool(req.societyId);
@@ -288,7 +280,6 @@ app.put('/api/vehicles/:id', requireSociety, async (req, res) => {
     res.json({ message: 'Updated', id: req.params.id });
   } catch (error) { res.status(500).json({ error: error.message }); }
 });
-
 app.delete('/api/vehicles/:id', requireSociety, async (req, res) => {
   try {
     const pool = getSocietyPool(req.societyId);
@@ -297,24 +288,13 @@ app.delete('/api/vehicles/:id', requireSociety, async (req, res) => {
   } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
-// KYC - simplified as we don't have a separate table yet
-app.get('/api/kyc', requireSociety, async (req, res) => {
-  try { res.json([]); } catch (error) { res.status(500).json({ error: error.message }); }
-});
+// KYC
+app.get('/api/kyc', requireSociety, async (req, res) => { res.json([]); });
+app.post('/api/kyc', requireSociety, async (req, res) => { res.json({ message: 'KYC submitted', data: req.body }); });
+app.post('/api/kyc/:id/approve', requireSociety, async (req, res) => { res.json({ message: 'KYC approved', id: req.params.id }); });
+app.post('/api/kyc/:id/reject', requireSociety, async (req, res) => { res.json({ message: 'KYC rejected', id: req.params.id }); });
 
-app.post('/api/kyc', requireSociety, async (req, res) => {
-  try { res.json({ message: 'KYC submitted', data: req.body }); } catch (error) { res.status(500).json({ error: error.message }); }
-});
-
-app.post('/api/kyc/:id/approve', requireSociety, async (req, res) => {
-  try { res.json({ message: 'KYC approved', id: req.params.id }); } catch (error) { res.status(500).json({ error: error.message }); }
-});
-
-app.post('/api/kyc/:id/reject', requireSociety, async (req, res) => {
-  try { res.json({ message: 'KYC rejected', id: req.params.id }); } catch (error) { res.status(500).json({ error: error.message }); }
-});
-
-// Blacklist - simplified
+// Blacklist
 app.get('/api/blacklist', requireSociety, async (req, res) => {
   try {
     const pool = getSocietyPool(req.societyId);
@@ -322,21 +302,18 @@ app.get('/api/blacklist', requireSociety, async (req, res) => {
     res.json(rows);
   } catch (error) { res.status(500).json({ error: error.message }); }
 });
-
 app.post('/api/blacklist', requireSociety, async (req, res) => {
   try {
     const pool = getSocietyPool(req.societyId);
     const b = req.body; const id = uuidv4();
-    await pool.execute(
-      'INSERT INTO visitors (id,name,phone,purpose,flatNumber,tower,status,vehicleNumber) VALUES (?,?,?,?,?,?,?,?)',
-      [id, b.name||'', b.phone||'', b.reason||'Blacklisted', b.flatNumber||'', b.tower||'', 'rejected', b.vehicleNumber||'']
-    );
+    await pool.execute('INSERT INTO visitors (id,name,phone,purpose,flatNumber,tower,status,vehicleNumber) VALUES (?,?,?,?,?,?,?,?)',
+      [id, b.name||'', b.phone||'', b.reason||'Blacklisted', b.flatNumber||'', b.tower||'', 'rejected', b.vehicleNumber||'']);
     const [rows] = await pool.execute('SELECT * FROM visitors WHERE id=?', [id]);
     res.json(rows[0]);
   } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
-// AMC (using assets for now)
+// AMC
 app.get('/api/amc', requireSociety, async (req, res) => {
   try {
     const pool = getSocietyPool(req.societyId);
@@ -344,7 +321,6 @@ app.get('/api/amc', requireSociety, async (req, res) => {
     res.json(rows);
   } catch (error) { res.status(500).json({ error: error.message }); }
 });
-
 app.post('/api/amc', requireSociety, async (req, res) => {
   try {
     const pool = getSocietyPool(req.societyId);
@@ -356,10 +332,8 @@ app.post('/api/amc', requireSociety, async (req, res) => {
   } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
-// SMS - placeholder
-app.post('/api/sms/send', async (req, res) => {
-  try { res.json({ message: 'SMS queued', data: req.body }); } catch (error) { res.status(500).json({ error: error.message }); }
-});
+// SMS placeholder
+app.post('/api/sms/send', async (req, res) => { res.json({ message: 'SMS queued', data: req.body }); });
 
 // Complaints
 app.use('/api/complaints', requireSociety, complaintsRoutes);
@@ -373,16 +347,16 @@ app.use('/api/visitors', requireSociety, visitorsRoutes);
 // Parking
 app.use('/api/parking', requireSociety, parkingRoutes);
 
-// Staff (mount before sub-routes like /attendance, /salary)
+// Staff
 app.use('/api/staff', requireSociety, staffRoutes);
 
-// Vendors (handles /contracts and /payments sub-routes)
+// Vendors
 app.use('/api/vendors', requireSociety, vendorsRoutes);
 
-// Billing (handles /maintenance, /utility, /payments, /expenses, /ledger)
+// Billing
 app.use('/api/billing', requireSociety, billingRoutes);
 
-// Facilities (handles /bookings sub-routes)
+// Facilities
 app.use('/api/facilities', requireSociety, facilitiesRoutes);
 
 // Assets
@@ -406,41 +380,6 @@ app.use('/api/documents', requireSociety, documentsRoutes);
 app.use('/api/move-requests', requireSociety, moveRequestsRoutes);
 app.use('/api/move', requireSociety, moveRequestsRoutes);
 
-// Vendor sub-routes with alternative paths
-app.use('/api/vendor-contracts', requireSociety, async (req, res) => {
-  try {
-    const pool = getSocietyPool(req.societyId);
-    const [rows] = await pool.execute('SELECT * FROM vendor_contracts ORDER BY createdAt DESC');
-    res.json(rows);
-  } catch (error) { res.status(500).json({ error: error.message }); }
-});
-
-app.use('/api/vendor-payments', requireSociety, async (req, res) => {
-  try {
-    const pool = getSocietyPool(req.societyId);
-    const [rows] = await pool.execute('SELECT * FROM vendor_payments ORDER BY createdAt DESC');
-    res.json(rows);
-  } catch (error) { res.status(500).json({ error: error.message }); }
-});
-
-// Billing payments alternative path
-app.use('/api/billing-payments', requireSociety, async (req, res) => {
-  try {
-    const pool = getSocietyPool(req.societyId);
-    const [rows] = await pool.execute('SELECT * FROM billing_payments ORDER BY createdAt DESC');
-    res.json(rows);
-  } catch (error) { res.status(500).json({ error: error.message }); }
-});
-
-// Facility bookings alternative path
-app.use('/api/facility-bookings', requireSociety, async (req, res) => {
-  try {
-    const pool = getSocietyPool(req.societyId);
-    const [rows] = await pool.execute('SELECT * FROM facility_bookings ORDER BY createdAt DESC');
-    res.json(rows);
-  } catch (error) { res.status(500).json({ error: error.message }); }
-});
-
 // 404 handler
 app.use('/api/*', (req, res) => {
   res.status(404).json({ error: `Route not found: ${req.method} ${req.originalUrl}` });
@@ -456,9 +395,10 @@ app.use((err, req, res, next) => {
 async function start() {
   try {
     await initMasterDB();
-    app.listen(PORT, '0.0.0.0', () => {
+    httpServer.listen(PORT, '0.0.0.0', () => {
       console.log(`\n🚀 Society Management Backend running on port ${PORT}`);
       console.log(`   Database: MySQL (Multi-tenant)`);
+      console.log(`   WebSocket: Enabled (Socket.IO)`);
       console.log(`   Health: http://localhost:${PORT}/api/health\n`);
     });
   } catch (error) {
