@@ -102,149 +102,372 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Society Management System - Fix all CRUD operations, add refresh buttons, notification center, search/filter everywhere"
+user_problem_statement: "Society Management System - Complete backend rewrite from Next.js/MongoDB to Node.js Express/MySQL with multi-tenant architecture (database per society). Admin onboards society with auto-created admin user, society admin login, user onboarding by society."
+
+# ARCHITECTURE: Decoupled system
+# Frontend: Next.js at port 3000
+# Backend: Express.js at port 5000 (/app/backend/)
+# Database: MySQL (MariaDB) at port 3306
+# Multi-tenant: Master DB (society_master) + tenant DBs (society_{id})
+# Proxy: Next.js proxies /api/* to localhost:5000
+# Auth: JWT tokens, login with userId/password
+
+# IMPORTANT FOR TESTING:
+# 1. Backend runs at http://localhost:5000 (NOT localhost:3000)
+# 2. Society-level APIs require x-society-id header
+# 3. Super Admin credentials: userId=admin001, password=admin123
+# 4. When testing society CRUD, first login as admin, create a society, use its ID and the auto-created admin credentials
+# 5. A SOCIETY_ADMIN user is auto-created when a society is onboarded
 
 backend:
-  - task: "Visitor registration API"
+  - task: "Auth - Login API"
     implemented: true
     working: true
-    file: "app/api/[[...path]]/route.js"
+    file: "backend/modules/auth/auth.routes.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
         - working: true
           agent: "main"
-          comment: "POST /visitors creates visitor - verified via UI screenshot"
-        - working: true
-          agent: "testing"
-          comment: "✅ VERIFIED: POST /api/visitors creates visitor with ID c8097d21-2a6e-4ac6-8f9e-9fa73aa5c3cb, GET /api/visitors returns array of 2 visitors including created one. Full CRUD workflow tested successfully."
+          comment: "POST /api/auth/login works with userId=admin001, password=admin123. Returns JWT token, user data with role."
 
-  - task: "Staff CRUD API"
+  - task: "Admin - Society Onboarding with auto user creation"
     implemented: true
     working: true
-    file: "app/api/[[...path]]/route.js"
+    file: "backend/modules/admin/admin.routes.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: false
-    status_history:
-        - working: true
-          agent: "testing"
-          comment: "✅ VERIFIED: POST /api/staff creates staff with ID b18db3e2-cbd7-4acb-9516-d8defd1607d8, GET /api/staff returns array of 2 staff members including created one. Full CRUD workflow tested successfully."
-
-  - task: "Vendor CRUD API"
-    implemented: true
-    working: true
-    file: "app/api/[[...path]]/route.js"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: false
-    status_history:
-        - working: true
-          agent: "testing"
-          comment: "✅ VERIFIED: POST /api/vendors creates vendor with ID 02743db1-59e5-47bd-a27f-1544731e78e1, GET /api/vendors returns array of 1 vendors including created one. Full CRUD workflow tested successfully."
-
-  - task: "Notice CRUD API"
-    implemented: true
-    working: true
-    file: "app/api/[[...path]]/route.js"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: false
-    status_history:
-        - working: true
-          agent: "testing"
-          comment: "✅ VERIFIED: POST /api/notices creates notice with ID 7bebd4ea-681d-4c48-a276-24af79190abf, GET /api/notices returns array of 2 notices including created one. Full CRUD workflow tested successfully."
-
-  - task: "Complaint CRUD API"
-    implemented: true
-    working: true
-    file: "app/api/[[...path]]/route.js"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: false
-    status_history:
-        - working: true
-          agent: "testing"
-          comment: "✅ VERIFIED: POST /api/complaints creates complaint with ID 770c7230-2763-496b-b641-541b0579fa9f, GET /api/complaints returns array of 2 complaints including created one. Full CRUD workflow tested successfully."
-
-  - task: "Announcement CRUD API"
-    implemented: true
-    working: true
-    file: "app/api/[[...path]]/route.js"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: false
-    status_history:
-        - working: true
-          agent: "testing"
-          comment: "✅ VERIFIED: POST /api/announcements creates announcement with ID 853a3131-91c1-425c-8dd7-b7c41f9b0e5f, GET /api/announcements returns array of 1 announcements including created one. Full CRUD workflow tested successfully."
-
-  - task: "Emergency trigger API endpoint"
-    implemented: true
-    working: true
-    file: "app/api/[[...path]]/route.js"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
         - working: true
           agent: "main"
-          comment: "POST /emergency/trigger endpoint stores emergencies in MongoDB"
-        - working: true
-          agent: "testing"
-          comment: "VERIFIED: POST /emergency/trigger creates emergency with ID, correct status"
+          comment: "POST /api/admin/societies creates society + tenant DB + SOCIETY_ADMIN user. Returns adminCredentials."
 
-  - task: "Emergency active list API"
+  - task: "Admin - Society List, Detail, Update, Delete"
     implemented: true
     working: true
-    file: "app/api/[[...path]]/route.js"
+    file: "backend/modules/admin/admin.routes.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
         - working: true
           agent: "main"
-          comment: "GET /emergency/active returns list of active emergencies"
-        - working: true
-          agent: "testing"
-          comment: "✅ VERIFIED: GET /emergency/active returns array of 3 active emergencies, proper response format with all required fields."
+          comment: "GET /api/admin/societies, GET /api/admin/societies/:id, PUT, DELETE all working."
 
-  - task: "Emergency resolve API"
+  - task: "Admin - Stats"
     implemented: true
     working: true
-    file: "app/api/[[...path]]/route.js"
+    file: "backend/modules/admin/admin.routes.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
         - working: true
           agent: "main"
-          comment: "POST /emergency/:id/resolve resolves an emergency"
-        - working: true
-          agent: "testing"
-          comment: "✅ VERIFIED: POST /emergency/{id}/resolve successfully resolved emergency 94724cc8-d588-4d58-b0d8-b57a27434141, returns success message."
+          comment: "GET /api/admin/stats returns totalSocieties, totalUsers, totalTeams, etc."
 
-  - task: "Gate pass CRUD API"
+  - task: "Society Admin Login"
     implemented: true
     working: true
-    file: "app/api/[[...path]]/route.js"
+    file: "backend/modules/auth/auth.routes.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: true
+          agent: "main"
+          comment: "Society admin can login with auto-created credentials. Returns societyId."
+
+  - task: "Towers CRUD"
+    implemented: true
+    working: true
+    file: "backend/modules/towers/towers.routes.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: true
+          agent: "main"
+          comment: "POST /api/towers creates tower + auto-generates flats. GET/PUT/DELETE all work."
+
+  - task: "Residents CRUD"
+    implemented: true
+    working: true
+    file: "backend/modules/residents/residents.routes.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: true
+          agent: "main"
+          comment: "Full CRUD with search/filter. POST/GET/PUT/DELETE all work."
+
+  - task: "Complaints CRUD"
+    implemented: true
+    working: true
+    file: "backend/modules/complaints/complaints.routes.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: true
+          agent: "main"
+          comment: "Full CRUD with search/filter by status, priority, category."
+
+  - task: "Notices CRUD"
+    implemented: true
+    working: true
+    file: "backend/modules/notices/notices.routes.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: true
+          agent: "main"
+          comment: "Full CRUD with search/filter."
+
+  - task: "Visitors CRUD"
+    implemented: true
+    working: true
+    file: "backend/modules/visitors/visitors.routes.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: true
+          agent: "main"
+          comment: "Full CRUD with approve/exit actions."
+
+  - task: "Staff CRUD with attendance/salary"
+    implemented: true
+    working: true
+    file: "backend/modules/staff/staff.routes.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: true
+          agent: "main"
+          comment: "Full CRUD + /attendance and /salary sub-routes."
+
+  - task: "Vendors CRUD with contracts/payments"
+    implemented: true
+    working: true
+    file: "backend/modules/vendors/vendors.routes.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: true
+          agent: "main"
+          comment: "Full CRUD + /contracts and /payments sub-routes."
+
+  - task: "Billing CRUD with maintenance/utility/payments/expenses/ledger"
+    implemented: true
+    working: true
+    file: "backend/modules/billing/billing.routes.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: true
+          agent: "main"
+          comment: "Full billing CRUD with sub-routes for each billing type."
+
+  - task: "Facilities CRUD with bookings"
+    implemented: true
+    working: true
+    file: "backend/modules/facilities/facilities.routes.js"
     stuck_count: 0
     priority: "medium"
+    needs_retesting: true
+    status_history:
+        - working: true
+          agent: "main"
+          comment: "Full CRUD + /bookings sub-routes."
+
+  - task: "Dashboard Stats"
+    implemented: true
+    working: true
+    file: "backend/modules/dashboard/dashboard.routes.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: true
+          agent: "main"
+          comment: "GET /api/dashboard/stats returns comprehensive stats from all society tables."
+
+  - task: "Emergencies CRUD"
+    implemented: true
+    working: true
+    file: "backend/modules/emergencies/emergencies.routes.js"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+        - working: true
+          agent: "main"
+          comment: "Full CRUD + /trigger and /:id/resolve."
+
+  - task: "Parking/Vehicles CRUD"
+    implemented: true
+    working: true
+    file: "backend/modules/parking/parking.routes.js"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+        - working: true
+          agent: "main"
+          comment: "Full CRUD for parking slots and vehicle management."
+
+  - task: "Announcements CRUD"
+    implemented: true
+    working: true
+    file: "backend/modules/announcements/announcements.routes.js"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+        - working: true
+          agent: "main"
+          comment: "Full CRUD with search/filter."
+
+  - task: "Documents CRUD"
+    implemented: true
+    working: true
+    file: "backend/modules/documents/documents.routes.js"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+        - working: true
+          agent: "main"
+          comment: "Full CRUD with search/filter."
+
+  - task: "Gate Passes CRUD"
+    implemented: true
+    working: true
+    file: "backend/modules/gate-passes/gatePasses.routes.js"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+        - working: true
+          agent: "main"
+          comment: "Full CRUD for gate passes."
+
+  - task: "Move Requests CRUD"
+    implemented: true
+    working: true
+    file: "backend/modules/move-requests/moveRequests.routes.js"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+        - working: true
+          agent: "main"
+          comment: "Full CRUD for move-in/move-out requests."
+
+  - task: "Assets CRUD"
+    implemented: true
+    working: true
+    file: "backend/modules/assets/assets.routes.js"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+        - working: true
+          agent: "main"
+          comment: "Full CRUD for society assets."
+
+  - task: "Owners/Tenants/Vehicles filtered endpoints"
+    implemented: true
+    working: true
+    file: "backend/server.js"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+        - working: true
+          agent: "main"
+          comment: "GET /api/owners, /api/tenants, /api/vehicles - filtered residents/vehicles."
+
+  - task: "Flats CRUD"
+    implemented: true
+    working: true
+    file: "backend/server.js"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+        - working: true
+          agent: "main"
+          comment: "Full CRUD for flat management."
+
+  - task: "Admin Users Management"
+    implemented: true
+    working: true
+    file: "backend/modules/admin/admin.routes.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: true
+          agent: "main"
+          comment: "GET/POST/PUT/DELETE /api/admin/users for managing users."
+
+  - task: "Admin Teams Management"
+    implemented: true
+    working: true
+    file: "backend/modules/admin/admin.routes.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: true
+          agent: "main"
+          comment: "GET/POST/PUT/DELETE /api/admin/teams for managing teams."
+
+frontend:
+  - task: "Login Page"
+    implemented: true
+    working: true
+    file: "app/login/page.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: true
+          agent: "main"
+          comment: "Login page shows user ID and password fields. Redirects to /admin for SUPER_ADMIN, /dashboard for others."
+
+  - task: "Admin Dashboard"
+    implemented: true
+    working: true
+    file: "app/admin/page.js"
+    stuck_count: 0
+    priority: "high"
     needs_retesting: false
     status_history:
         - working: true
           agent: "main"
-          comment: "GET/POST /gate-pass endpoints working"
-        - working: true
-          agent: "testing"
-          comment: "✅ VERIFIED: GET /gate-pass returns array (0 passes initially), POST /gate-pass creates pass with ID c5ec4bd0-62c4-4e19-81a5-d2ddb2aecd61, generates QR code, sets status 'active'."
+          comment: "Shows stats cards, recent societies, recent users. Verified via screenshot."
 
-  - task: "Payments API for receipts"
+  - task: "Admin Societies Management"
     implemented: true
     working: true
-    file: "app/api/[[...path]]/route.js"
+    file: "app/admin/societies/page.js"
     stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "main"
+          comment: "Shows society list, add/edit/delete dialogs with admin credential fields."
     priority: "medium"
     needs_retesting: false
     status_history:
@@ -256,71 +479,49 @@ backend:
           comment: "✅ VERIFIED: GET /billing/payments working correctly, returns array of 2 payments, MongoDB connection stable, no connection issues detected."
 
 frontend:
-  - task: "Emergency SOS Test Button with blinking alert"
+  - task: "Login Page"
     implemented: true
     working: true
-    file: "app/dashboard/emergency/page.js"
+    file: "app/login/page.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: true
+          agent: "main"
+          comment: "Login page shows user ID and password fields. Redirects to /admin for SUPER_ADMIN, /dashboard for others."
+
+  - task: "Admin Dashboard"
+    implemented: true
+    working: true
+    file: "app/admin/page.js"
     stuck_count: 0
     priority: "high"
     needs_retesting: false
     status_history:
         - working: true
           agent: "main"
-          comment: "Test button triggers blinking emergency card at bottom-right with sound - verified via screenshot"
+          comment: "Shows stats cards, recent societies, recent users. Verified via screenshot."
 
-  - task: "Receipt PDF generation and download"
+  - task: "Admin Societies Management"
     implemented: true
     working: true
-    file: "app/dashboard/billing/receipts/page.js"
+    file: "app/admin/societies/page.js"
     stuck_count: 0
     priority: "high"
     needs_retesting: false
     status_history:
         - working: true
           agent: "main"
-          comment: "jsPDF generates professional receipts with MyTower branding - verified UI via screenshot"
-
-  - task: "Gate Pass PDF download"
-    implemented: true
-    working: true
-    file: "app/dashboard/visitors/gate-pass/page.js"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: false
-    status_history:
-        - working: true
-          agent: "main"
-          comment: "Gate pass PDF with QR placeholder, share via clipboard - verified UI via screenshot"
-
-  - task: "Material Exit Pass PDF"
-    implemented: true
-    working: true
-    file: "app/dashboard/visitors/material-pass/page.js"
-    stuck_count: 0
-    priority: "medium"
-    needs_retesting: false
-    status_history:
-        - working: true
-          agent: "main"
-          comment: "Material exit pass PDF with authorization section"
-
-  - task: "CSV Export for receipts"
-    implemented: true
-    working: true
-    file: "app/dashboard/billing/receipts/page.js"
-    stuck_count: 0
-    priority: "medium"
-    needs_retesting: false
-    status_history:
-        - working: true
-          agent: "main"
-          comment: "Export CSV button on receipts page"
+          comment: "Shows society list, add/edit/delete dialogs with admin credential fields."
 
 metadata:
   created_by: "main_agent"
-  version: "1.0"
-  test_sequence: 2
+  version: "2.0"
+  test_sequence: 1
   run_ui: false
+  backend_url: "http://localhost:5000"
+  notes: "Backend is Express.js on port 5000. Frontend proxies /api/* to backend. Multi-tenant MySQL. Super admin: admin001/admin123."
 
   - task: "Vendor Contracts CRUD API"
     implemented: true

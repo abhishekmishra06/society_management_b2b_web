@@ -11,7 +11,7 @@ import time
 from typing import Dict, Any
 
 # Configuration
-BASE_URL = "https://platform-admin-hub.preview.emergentagent.com/api"
+BASE_URL = "https://quirky-sinoussi-5.preview.emergentagent.com/api"
 HEADERS = {
     "Content-Type": "application/json",
     "Accept": "application/json"

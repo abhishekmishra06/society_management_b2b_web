@@ -1,140 +1,145 @@
 <analysis>
 
-**original_problem_statement**: The user's initial goal was to build a Society Management System using Next.js. Over time, this has evolved significantly. The most recent and major request was to create a completely separate **Super Admin Panel**. This panel is intended for a super admin who can manage multiple societies, onboard new ones, and manage users and teams with specific permissions across the platform. This is in addition to the existing Society Panel which is used for the day-to-day management of a single society.
+**original_problem_statement**: The user wants to build a Society Management System. The initial phase involved creating a Society Panel and a Super Admin Panel on a Next.js/MongoDB stack.
 
-PRODUCT REQUIREMENTS:
-*   **Super Admin Panel**: A new, separate section for a super admin to manage the entire platform.
-    *   Onboard and manage multiple societies.
-    *   Create and manage all users (including other admins and staff).
-    *   Create teams and assign feature access/permissions.
-    *   View platform-wide statistics.
-*   **Society Panel**: The original application, now scoped to managing a single society.
-    *   **Role-Based Access Control (RBAC)**: A comprehensive permission system where an admin can grant specific feature access (e.g., Billing, Security) to staff and vendor users.
-    *   **Core Modules**: Full CRUD functionality for Residents, Parking, Move-In/Out, Documents, Finances, Security, etc.
-    *   **UX Features**: A first-login welcome guide, a user profile accessible from the sidebar, and a dashboard with live statistics.
-    *   **Bug Fixes**: Resolve various issues with broken forms and data display.
+The user's latest requests have initiated a complete architectural overhaul:
+1.  **Backend Technology Change**: Migrate the entire backend from Next.js API routes to a standalone, scalable Node.js/Express.js server.
+2.  **Database Migration**: Migrate the database from MongoDB to MySQL.
+3.  **Multi-Tenant Architecture**: Implement a database-per-tenant model. When a new society is onboarded via the Super Admin panel, a completely new, separate MySQL database must be created for that society to store all its data. A  database will store global data like users and societies.
+4.  **Full-Featured Backend**: The new Express.js backend must replicate all the rich functionality of the original system, including complex business logic, search, filtering, and statistics for every module, not just basic CRUD operations.
+5.  **Firebase Integration**: Integrate Firebase for push notifications (credentials have been provided).
+6.  **Super Admin Panel Enhancements**:
+    *   View a society's full profile from the admin panel, including all details like towers, flats, etc.
+    *   Implement advanced filters across all data tables in the admin panel.
+    *   Implement Role-Based Access Control (RBAC) within the Super Admin panel itself, showing/hiding features based on the logged-in admin's permissions.
 
 **User's preferred language**: English
 
 **what currently exists?**
-The application has been successfully transformed into a multi-level platform with two distinct interfaces:
-1.  **Society Panel ()**: A feature-rich panel for managing a single society. It includes a full RBAC system allowing admins to grant specific permissions to staff/vendors. The sidebar dynamically renders based on user permissions. It features a working dashboard with live stats, a user profile dialog, and a welcome guide for first-time users. Full CRUD functionality has been implemented and fixed for key modules like Parking, Move-in/Out, and Documents.
-2.  **Super Admin Panel ()**: A brand new, fully functional panel for platform-level administration. It has its own distinct dark-themed layout and navigation. It allows a super admin to manage societies, all system users, and teams. The login page correctly redirects users with the  role to this panel.
+The project has been successfully re-architected into a decoupled frontend/backend system.
+-   **Frontend**: A Next.js application serves as the user interface. It has been configured with a proxy in  to forward all API requests starting with  to the backend server.
+-   **Backend**: A new, separate Node.js/Express.js server located in the  directory. This backend is connected to a MySQL database.
+-   **Database**: MySQL is installed and running. The multi-tenant architecture's foundation is complete. A  database exists for platform data, and the logic to create a new, separate database with a full 21-table schema for each new society is implemented and has been tested successfully.
+-   **Functionality**: The basic plumbing is working. The frontend can communicate with the backend. User login and society onboarding (which triggers new DB creation) are functional. However, most of the backend API endpoints contain only placeholder or basic CRUD logic.
 
 **Last working item**:
--   **Last item agent was working**: The agent just finished building the entire Super Admin Panel, including the backend APIs, frontend pages (Dashboard, Societies, Users, Teams), and the login redirection logic. The final action was explaining to the user how to access this new panel.
--   **Status**: USER VERIFICATION PENDING
--   **Agent Testing Done**: Y (Backend APIs for the admin panel were tested).
--   **Which testing method agent to use?**: Manual testing by the user is required to verify the new Super Admin panel functionality. The agent should await user feedback.
+-   **Last item agent was working**: The user reported that the newly created Express.js backend modules were too simplistic (empty). The agent was in the middle of a complete rewrite of all backend modules (controllers/routes) in the  directory to add the full, rich business logic (search, filters, stats, etc.) that existed in the original system, to meet the user's requirement for a fully working backend.
+-   **Status**: IN PROGRESS
+-   **Agent Testing Done**: N (The rewrite of the modules is not complete).
+-   **Which testing method agent to use?**: backend testing agent. Once the module rewrite is complete, a full regression test of all API endpoints is required.
 -   **User Testing Done**: N
 
 **All Pending/In progress Issue list**:
-There are no active issues or requests from the user. The agent has just completed a major set of features and is awaiting feedback.
+-   **Issue 1**: The Express.js backend modules are incomplete. They were initially created with a generic CRUD factory, which the user rejected as too basic. This is the highest priority issue.
+    -   **Priority**: P0
+
+**Issues Detail**:
+-   **Issue 1: Incomplete Express.js Backend Modules**
+    -   **Attempted fixes**: The agent's last action was to start manually rewriting each module file (e.g., , , ) to include the specific business logic, validation, search, and aggregation/stats functionality.
+    -   **Next debug checklist**: Continue the rewrite process for all files in  and . Ensure logic for search, filters, and dashboard stats is ported from the original implementation.
+    -   **Why fix this issue and what will be achieved with the fix?**: This will deliver the core user requirement: a fully functional, scalable, standalone backend with all the previously existing features. The application will become usable again.
+    -   **Status**: IN PROGRESS
+    -   **Is recurring issue?**: N
+    -   **Should Test frontend/backend/both after fix?**: backend
+    -   **Blocked on other issue**: None
 
 **In progress Task List**:
-There are no tasks currently in progress.
+-   **Task 1: Complete Backend Module Rewrite**
+    -   **Priority**: P0
+    -   **Where to resume**: The agent had started rewriting the files in . The next step is to go through each file one-by-one and implement the full business logic for its corresponding API endpoints. Reference the logic from the old Next.js/MongoDB implementation ( from earlier in the history) as a guide.
+    -   **What will be achieved with this?**: A complete, feature-rich, standalone Express.js backend that meets all user requirements.
+    -   **Status**: IN PROGRESS
+    -   **Should Test frontend/backend/both after fix?**: backend
+    -   **Blocked on something**: None
 
 **Upcoming and Future Tasks**
--   **(P0) Await User Feedback**: The immediate next step is to wait for the user to test the new Super Admin panel and the extensive RBAC features and provide feedback or new requirements.
--   **(P1) Admin Notifications**: The user mentioned admin notification (message #74) which was not explicitly implemented as a standalone feature. This could be a future task to build out a more proactive notification system for admins.
--   **(P2) Real-time Features**: Implement real-time WebSocket functionality for the Emergency SOS feature using Socket.io.
--   **(P3) Integrations**:
-    -   Integrate the Firebase SDK for push notifications.
-    -   Integrate the Ranapay SMS API for sending SMS notifications.
--   **(P4) Refactoring**: Refactor the monolithic API route () into separate files for each resource to improve maintainability.
+-   **(P1) RBAC in Super Admin Panel**: After the backend is complete, implement role-based access control on the frontend for the Super Admin panel. The UI should dynamically change based on the permissions of the logged-in super admin user.
+-   **(P2) Firebase Push Notifications**: Integrate the provided Firebase service account credentials to implement push notifications. The  service file exists in the backend, but the logic to send notifications (e.g., on new notice creation) needs to be added.
+-   **(P3) Frontend Polish & Verification**: Once the backend is stable and complete, conduct a full review of the frontend to ensure all pages and components work correctly with the new Express API and that no functionality was lost.
 
 **Completed work in this session**
--   **Super Admin Panel (NEW)**:
-    -   Created a completely separate admin section at  with its own layout, sidebar, and pages for managing Societies, Users, and Teams.
-    -   Implemented backend APIs for all Super Admin CRUD operations.
-    -   Updated the login page to redirect  role users to .
--   **Role-Based Access Control (RBAC) System (NEW)**:
-    -   Implemented a Share Access feature on Staff and Vendor pages, allowing admins to assign specific module permissions.
-    -   The main dashboard sidebar is now dynamic and only shows menu items that the logged-in user has permission to view.
-    -   Created a central  file for managing permission constants.
--   **Dashboard & UX Enhancements (NEW)**:
-    -   Built a Welcome Guide tour that appears for users on their first login.
-    -   The main dashboard now displays live stats (total complaints, bill amounts, etc.) fetched from a new API endpoint.
-    -   The user's name in the sidebar is now clickable, opening a User Profile dialog.
--   **Full CRUD for Core Modules**:
-    -   Implemented complete Add, Edit, Delete, Search, and Filter functionality for **Parking Management**, **Move-In/Move-Out**, and **Document Management**.
--   **Critical Bug Fixes**:
-    -   Resolved a recurring sidebar scroll issue by refactoring the layout component structure to prevent re-mounting.
-    -   Fixed multiple broken modules reported by the user, including non-working Add buttons and data display issues on pages for Vendor Contracts, Facilities, Assets, and Parking.
+-   **Complete Backend Re-platforming (Next.js API -> Node.js/Express)**: Architected and built a new standalone backend server using Express.js, completely decoupling it from the Next.js frontend.
+-   **Complete Database Migration (MongoDB -> MySQL)**: Migrated the entire persistence layer from MongoDB to MySQL, including creating new schemas and connection logic using Sequelize.
+-   **Multi-Tenant Database Architecture Implemented**: Successfully designed and implemented the database-per-tenant model. The system now correctly creates a new, dedicated MySQL database with a full table schema for each new society that is onboarded.
+-   **Frontend-Backend Integration**: Configured the Next.js frontend to proxy API calls to the new Express backend, establishing communication between the two separate services.
+-   **Full CI/CD & Service Configuration**: Installed all necessary dependencies (, , ), configured  to manage the new backend and database services, and debugged several startup and pathing issues to get the new architecture running.
 
 **Earlier issues found/mentioned but not fixed**
-All issues raised by the user in this session have been addressed.
+-   **RBAC in Super Admin Panel**: The user requested that features within the Super Admin panel be controlled by permissions. This was not implemented as the focus shifted entirely to the major backend rewrite. It is now a P1 upcoming task.
 
 **Known issue recurrence from previous fork**
--   The Add Notice issue, which was recurring, was part of a larger set of broken Add buttons that have now been fixed and verified. The root cause was often missing mutation hooks in  or incomplete backend handlers, which have been implemented.
+-   The Out-of-Memory (OOM) errors that occurred during Next.js compilation are unlikely to recur in the same manner, as the heavy backend logic has been moved to a separate, lighter-weight Express process.
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
 -   **Frontend**: Next.js 14, React, TailwindCSS, shadcn/ui
--   **State Management**: React Query,  (for permissions and first-login flag)
--   **Backend**: Next.js API Routes, MongoDB
--   **Architecture**: Multi-panel application with role-based routing. A comprehensive Role-Based Access Control (RBAC) system has been implemented, filtering UI elements based on user permissions.
+-   **Backend**: **Node.js, Express.js**
+-   **Database**: **MySQL** with **Sequelize** ORM
+-   **Architecture**:
+    -   **Decoupled Frontend/Backend**: Next.js for UI, Express.js for API.
+    -   **Multi-Tenant (Database-per-Tenant)**: A master database for global data and separate, dynamically created databases for each society.
+    -   **API Proxy**: Next.js proxies API calls to the Express server.
 
 **key DB schema**
--   **users**: Now includes a  ('ADMIN', 'STAFF', 'SUPER_ADMIN'),  (array of strings), and  (boolean).
--   **societies**: New collection to store society information managed by the super admin.
--   **teams**: New collection for creating groups of users with shared permissions.
+-   **master_db**:
+    -   : { id, name, email, password, role ('SUPER_ADMIN', 'ADMIN'), permissions, societyId }
+    -   : { id, name, registration_number, address, db_name, ... }
+    -   : { id, name, permissions }
+-   **society\_{id}\_db**: (Schema for each tenant database)
+    -   Contains ~21 tables for society management, including , , , , , , , etc.
+
+**changes in tech stack**
+-   **Database**: MongoDB has been completely replaced with **MySQL**.
+-   **Backend**: Next.js API Routes have been completely replaced with a **standalone Node.js/Express.js server**.
 
 **All files of reference**
--   : Heavily modified to include dozens of new endpoints for the Super Admin panel, RBAC, and dashboard stats.
--    (directory): Contains all new frontend code for the Super Admin panel.
--   : Significantly updated with logic for the User Profile dialog, Welcome Guide, and dynamic sidebar filtering based on permissions from .
--   : Updated to perform role-based redirection to either  or .
--   : New file defining all permission keys used in the RBAC system.
--   , , : Key new reusable components.
--   , : Updated to include the Share Access functionality.
-
-**Areas that need refactoring**:
--   The monolithic API file  is now extremely large and complex. It is the highest priority for future refactoring.
-
-**key api endpoints**
--   **Super Admin**: , , , 
--   **RBAC & User**: , 
--   **Society Panel**: ,  for , , , etc.
+-    (directory): Entire new directory containing the standalone backend server.
+-   : Newly created to proxy API requests.
+-   , : New service configuration files.
+-    (directory): **DELETED**. All backend logic moved to .
+-   : Updated to add the  header for multi-tenancy.
+-   : Updated to store  in localStorage on login.
 
 **Critical Info for New Agent**
--   **Dual-Panel System**: The app now has two distinct parts. Use the credentials below to test each one. Do not confuse them.
--   **RBAC is Core**: The permission system is fundamental to how the Society Panel () works. The sidebar and feature access are controlled by the  array stored in  upon login.
--   **Await User Feedback**: The user has not yet seen or tested the new Super Admin panel. Do not begin new work until the user has verified the current implementation and provided next steps.
--   **Login Credentials are Key**: Use the correct credentials to access the appropriate panel.
+-   **You are working on a decoupled system.** The frontend is in  (Next.js) and the backend is in  (Express.js). They are separate processes.
+-   **The backend is incomplete.** Your primary task is to finish the rewrite of the Express.js modules in  to be full-featured, not just basic CRUD.
+-   **Multi-Tenancy is key.** API endpoints for society-specific data require the  header to be sent from the frontend. The backend uses this header to switch to the correct society database.
+-   **Do not re-implement the architecture.** The migration to Express/MySQL and the multi-tenant DB creation logic is complete and working. Your focus is on filling in the business logic within the existing new structure.
+
+**documents created in this job**
+-   None.
 
 **Last 10 User Messages and any pending HUMAN messages**
-1.  **#282**: **(Answered)** User asked how to access the super admin panel.
-2.  **#253**: **(Completed)** User clarified requirements for the Super Admin panel (separate section, super admin logs into society panel normally).
-3.  **#248**: **(Completed)** User requested the creation of a Super Admin panel to manage multiple societies.
-4.  **#151**: **(Completed)** User requested dashboard stats, a clickable user profile, and a Share Access (RBAC) feature for staff/vendors.
-5.  **#102**: **(Completed)** User re-iterated the plan to fix the sidebar and build out Parking Management.
-6.  **#100**: **(Completed)** User reported the sidebar scroll issue was not fixed and requested to start Phase 2.
-7.  **#79**: **(Completed)** User confirmed starting Phase 1 (Sidebar fix).
-8.  **#74**: **(Completed)** User requested a first-time user guide, a fix for the sidebar scroll, and full implementation of Parking, Move-In/Out, and Document management.
+1.  **#368 (Pending)**: User stated the new backend modules are empty and wants the full working logic from the previous system. **This is the active task.**
+2.  **#269 (Completed)**: User confirmed to proceed with the Node.js backend and the new database per society architecture.
+3.  **#264 (Completed)**: User requested the backend be migrated from Next.js API routes to a standalone Node.js server.
+4.  **#181 (Completed)**: User confirmed the migration from MongoDB to MySQL and specified the multi-tenant individual database per society requirement.
+5.  **#176 (Completed)**: User requested a scalable, modular backend in Node.js/MySQL and provided Firebase credentials.
+6.  **#171 (Completed)**: User made the first request to move to a fully separate backend with PostgreSQL (later clarified to MySQL).
+7.  **#13 (Completed)**: User prioritized features: 1) Society onboarding with full profile, 2) Advanced filters.
+8.  **#8 (Partially Done)**: User requested RBAC in the admin panel, viewing full society profiles, and advanced filters. The profile/filters were started but work was pivoted for the backend rewrite.
+9.  **#5 (Info)**: User asked about running the backend locally, indicating a 500 error.
+10. **#2 (System)**: System message asking agent to use .
 
 **Project Health Check:**
--   **Broken**: No known broken features. All user-reported issues from this session have been fixed.
--   **Mocked**: No mocked data. The entire application is connected to a live MongoDB database.
+-   **Broken**: The backend is non-functional for most features as it's in the middle of a major rewrite. The frontend pages will fail when they call the incomplete API endpoints.
 
 **3rd Party Integrations**
--   **jspdf / jspdf-autotable**: Implemented for PDF generation.
--   **Firebase**: Installed but not implemented.
--   **Ranapay (SMS)**: Planned but not implemented.
--   **Socket.io**: Installed, but real-time functionality is not yet implemented.
+-   **MySQL**: Fully integrated as the primary database.
+-   **Sequelize**: Integrated as the ORM for MySQL.
+-   **Firebase**: Admin SDK is installed and configured in the backend (), but no notification-sending logic has been implemented yet. User provided service account credentials.
 
 **Testing status**
--   **Testing agent used after significant changes**: YES,  was used multiple times to verify new API endpoints for CRUD modules and the Super Admin panel.
--   **Test files created**: None.
--   **Known regressions**: None known. The previously recurring Add Notice issue was part of a larger fix-set and should be resolved.
+-   **Testing agent used after significant changes**: YES, the backend testing agent was used successfully to validate the *previous* architectural versions (Next.js/MySQL and basic Express/MySQL). It has not been run on the current, in-progress rewrite.
+-   **Test files created**: Test tasks were updated in , but no persistent test files were created.
+-   **Known regressions**: Most of the application's functionality is currently regressed because the backend API endpoints are not fully implemented.
 
 **Credentials to test flow:**
--   **Society Panel Admin**:  /  (redirects to )
--   **Super Admin**:  /  (redirects to )
+-   **Super Admin**:  / 
 
 **What agent forgot to execute**
--   The admin notification feature mentioned in passing by the user (message #74) was not built as a distinct feature. However, given the scale of the other requests that were completed, this was a reasonable omission. All other direct requests in this session were fulfilled.
+-   The user's request for **Role-Based Access Control (RBAC) in the Super Admin panel** was acknowledged but not implemented due to the two massive, superseding requests to rewrite the entire backend and migrate the database. This remains a high-priority upcoming task.
 
 </analysis>

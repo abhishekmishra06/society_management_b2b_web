@@ -48,8 +48,19 @@ router.post('/societies', async (req, res) => {
       'INSERT INTO societies (id,name,address,city,state,pincode,phone,email,registrationNo,totalTowers,totalFlats,societyType,description,establishedYear,builderName,amenities,billingPeriod,maintenanceAmount,status,dbName) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
       [id, b.name||'', b.address||'', b.city||'', b.state||'', b.pincode||'', b.phone||'', b.email||'', b.registrationNo||'', Number(b.totalTowers)||0, Number(b.totalFlats)||0, b.societyType||'residential', b.description||'', b.establishedYear||'', b.builderName||'', JSON.stringify(b.amenities||[]), b.billingPeriod||'monthly', b.maintenanceAmount||'', b.status||'active', dbName]
     );
+    // Auto-create SOCIETY_ADMIN user for this society
+    const adminUserId = uuidv4();
+    const societyAdminId = b.adminUserId || `society_${id.substring(0,8)}`;
+    const societyAdminPassword = b.adminPassword || 'password123';
+    const societyAdminName = b.adminName || `${b.name} Admin`;
+    await pool.execute(
+      'INSERT INTO users (id,name,userId,password,email,phone,role,societyId,permissions) VALUES (?,?,?,?,?,?,?,?,?)',
+      [adminUserId, societyAdminName, societyAdminId, societyAdminPassword, b.email||'', b.phone||'', 'SOCIETY_ADMIN', id, JSON.stringify(['FULL_ACCESS'])]
+    );
+
     const [rows] = await pool.execute('SELECT * FROM societies WHERE id=?', [id]);
     const soc = rows[0]; soc.amenities = parseJSON(soc.amenities);
+    soc.adminCredentials = { userId: societyAdminId, password: societyAdminPassword };
     res.json(soc);
   } catch (error) { console.error('[Admin]', error); res.status(500).json({ error: error.message }); }
 });

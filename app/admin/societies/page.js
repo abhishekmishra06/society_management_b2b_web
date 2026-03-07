@@ -40,7 +40,8 @@ export default function SocietiesPage() {
     name: '', address: '', city: '', state: '', pincode: '',
     phone: '', email: '', registrationNo: '', totalTowers: '', totalFlats: '',
     societyType: 'residential', description: '', establishedYear: '',
-    builderName: '', amenities: [], billingPeriod: 'monthly', maintenanceAmount: '', status: 'active'
+    builderName: '', amenities: [], billingPeriod: 'monthly', maintenanceAmount: '', status: 'active',
+    adminName: '', adminUserId: '', adminPassword: ''
   });
   const [errors, setErrors] = useState({});
 
@@ -57,7 +58,8 @@ export default function SocietiesPage() {
       name: '', address: '', city: '', state: '', pincode: '',
       phone: '', email: '', registrationNo: '', totalTowers: '', totalFlats: '',
       societyType: 'residential', description: '', establishedYear: '',
-      builderName: '', amenities: [], billingPeriod: 'monthly', maintenanceAmount: '', status: 'active'
+      builderName: '', amenities: [], billingPeriod: 'monthly', maintenanceAmount: '', status: 'active',
+      adminName: '', adminUserId: '', adminPassword: ''
     });
     setErrors({});
   };
@@ -277,6 +279,26 @@ export default function SocietiesPage() {
               {a}
             </button>
           ))}
+        </div>
+      </div>
+
+      {/* Society Admin Credentials */}
+      <div>
+        <h4 className="text-sm font-semibold text-gray-700 mb-3">Society Admin Login Credentials</h4>
+        <p className="text-xs text-gray-500 mb-3">These credentials will be used by the society admin to log in</p>
+        <div className="grid grid-cols-3 gap-3">
+          <div className="space-y-1">
+            <Label className="text-xs">Admin Name</Label>
+            <Input value={form.adminName} onChange={e => setForm({...form, adminName: e.target.value})} placeholder="e.g., Society Manager" />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Admin User ID</Label>
+            <Input value={form.adminUserId} onChange={e => setForm({...form, adminUserId: e.target.value})} placeholder="e.g., society_admin01" />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Admin Password</Label>
+            <Input value={form.adminPassword} onChange={e => setForm({...form, adminPassword: e.target.value})} placeholder="Default: password123" />
+          </div>
         </div>
       </div>
 
