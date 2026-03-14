@@ -10,7 +10,7 @@ import sys
 from datetime import datetime
 
 # Configuration
-BASE_URL = "http://localhost:5000"
+BASE_URL = "http://localhost:5001"
 SUPER_ADMIN_USER_ID = "admin001"
 SUPER_ADMIN_PASSWORD = "admin123"
 

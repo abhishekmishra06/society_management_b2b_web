@@ -36,12 +36,8 @@ import documentsRoutes from './modules/documents/documents.routes.js';
 import moveRequestsRoutes from './modules/move-requests/moveRequests.routes.js';
 
 const app = express();
-<<<<<<< HEAD
-const PORT = process.env.BACKEND_PORT || 5001;
-=======
 const httpServer = createServer(app);
-const PORT = process.env.BACKEND_PORT || 5000;
->>>>>>> 34869be (auto-commit for 32274956-360b-4f44-bd83-658489297704)
+const PORT = process.env.BACKEND_PORT || 5001;
 
 // Setup WebSocket
 const io = setupWebSocket(httpServer);

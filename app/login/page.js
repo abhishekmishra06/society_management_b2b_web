@@ -3,16 +3,18 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Building2, Loader2, Eye, EyeOff } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Building2, Loader2 } from 'lucide-react';
 import { COLORS } from '@/lib/constants/colors';
+import Link from 'next/link';
 import apiClient from '@/lib/api/client';
 import { API_ENDPOINTS } from '@/lib/api/endpoints';
 import { toast } from 'sonner';
 
 export default function LoginPage() {
   const router = useRouter();
+  const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     userId: '',
     password: '',
@@ -65,62 +67,123 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${COLORS.primary} 0%, ${COLORS.primaryDark} 100%)` }}>
-      <Card className="w-full max-w-md mx-4">
-        <CardHeader className="text-center">
-          <div className="flex justify-center mb-4">
-            <div className="p-4 rounded-full" style={{ backgroundColor: COLORS.primary }}>
-              <Building2 className="h-12 w-12 text-white" />
-            </div>
+      <div className="min-h-screen grid lg:grid-cols-2">
+
+      {/* LEFT SIDE BRANDING */}
+      <div className="hidden lg:flex flex-col justify-center items-center bg-gradient-to-br from-indigo-600 to-purple-700 text-white p-16">
+        
+        <div className="flex items-center gap-3 mb-6">
+          <div className="p-4 rounded-xl bg-white/20 backdrop-blur-lg">
+            <Building2 className="h-10 w-10" />
           </div>
-          <CardTitle className="text-3xl font-bold" style={{ color: COLORS.primary }}>MyTower</CardTitle>
-          <CardDescription className="text-lg">Society Management System</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="userId">User ID</Label>
-              <Input
-                id="userId"
-                placeholder="Enter your user ID"
-                value={formData.userId}
-                onChange={(e) => setFormData({ ...formData, userId: e.target.value })}
-                required
-              />
+          <h1 className="text-4xl font-bold">MyTower</h1>
+        </div>
+
+        <p className="text-lg text-white/80 text-center max-w-md">
+          Smart Society Management System designed to simplify 
+          security, visitor management, billing, and operations 
+          for modern residential communities.
+        </p>
+
+      </div>
+
+      {/* RIGHT SIDE LOGIN */}
+      <div className="flex items-center justify-center bg-muted/40 px-6">
+
+        <Card className="w-full max-w-md border-0 shadow-2xl backdrop-blur-xl bg-white/80">
+          <CardContent className="p-8">
+
+            {/* Header */}
+            <div className="text-center mb-8">
+              <div className="flex justify-center mb-4 lg:hidden">
+                <div className="p-3 rounded-xl bg-indigo-600 text-white">
+                  <Building2 className="h-8 w-8" />
+                </div>
+              </div>
+
+              <h2 className="text-2xl font-bold">Welcome Back</h2>
+              <p className="text-muted-foreground text-sm mt-1">
+                Login to your dashboard
+              </p>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Enter your password"
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                required
-              />
+
+            {/* Form */}
+            <form onSubmit={handleLogin} className="space-y-5">
+
+              {/* User ID */}
+              <div className="space-y-2">
+                <Label>User ID</Label>
+                <Input
+                  placeholder="Enter your user ID"
+                  value={formData.userId}
+                  onChange={(e) =>
+                    setFormData({ ...formData, userId: e.target.value })
+                  }
+                  required
+                />
+              </div>
+
+              {/* Password */}
+              <div className="space-y-2">
+                <Label>Password</Label>
+
+                <div className="relative">
+                  <Input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Enter your password"
+                    value={formData.password}
+                    onChange={(e) =>
+                      setFormData({ ...formData, password: e.target.value })
+                    }
+                    required
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  >
+                    {showPassword ? (
+                      <EyeOff size={18} />
+                    ) : (
+                      <Eye size={18} />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Login Button */}
+              <Button
+                type="submit"
+                className="w-full h-11 text-base"
+                disabled={loading}
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Logging in...
+                  </>
+                ) : (
+                  "Login"
+                )}
+              </Button>
+
+            </form>
+
+            {/* Reset Password */}
+            <div className="mt-6 text-center text-sm">
+              <Link
+                href="/reset-password"
+                className="text-indigo-600 hover:underline font-medium"
+              >
+                Reset your password here
+              </Link>
             </div>
-            <Button 
-              type="submit" 
-              className="w-full" 
-              style={{ backgroundColor: COLORS.primary }}
-              disabled={loading}
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Logging in...
-                </>
-              ) : (
-                'Login'
-              )}
-            </Button>
-          </form>
-          <div className="mt-6 text-center text-sm text-muted-foreground">
-            <p>Demo Credentials:</p>
-            <p className="font-mono text-xs mt-1">ID: admin001 | Password: admin123</p>
-          </div>
-        </CardContent>
-      </Card>
+
+          </CardContent>
+        </Card>
+
+      </div>
     </div>
   );
 }
