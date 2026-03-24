@@ -6,6 +6,7 @@ import Header from '@/components/layout/Header';
 import EmergencyAlert from '@/components/emergency/EmergencyAlert';
 import WelcomeGuide from '@/components/WelcomeGuide';
 import { Toaster } from 'sonner';
+import TowerOnboarding from '@/components/onboarding/TowerOnboarding';
 
 export default function DashboardLayout({ children }) {
   const router = useRouter();
@@ -48,6 +49,7 @@ export default function DashboardLayout({ children }) {
         <main ref={mainContentRef} className="flex-1 overflow-y-auto p-4 lg:p-6">
           {children}
         </main>
+        <TowerOnboarding />
       </div>
       
       <EmergencyAlert />

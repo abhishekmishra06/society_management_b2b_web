@@ -81,27 +81,44 @@ export default function ResidentsPage() {
           <h1 className="text-3xl font-bold" style={{ color: COLORS.primary }}>Resident Management</h1>
           <p className="text-muted-foreground mt-1">Manage all residents in your society</p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button style={{ backgroundColor: COLORS.primary }} onClick={() => setEditingResident(null)}>
+      
+          {/* <DialogTrigger asChild>
+            <Button  style={{ backgroundColor: COLORS.primary }} onClick={() => {console.log("Add Resident button clicked"); setEditingResident(null)} }>
+            
               <Plus className="h-4 w-4 mr-2" />
               Add Resident
             </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>{editingResident ? 'Edit Resident' : 'Add New Resident'}</DialogTitle>
-              <DialogDescription>
-                {editingResident ? 'Update resident information' : 'Add a new resident to the society'}
-              </DialogDescription>
-            </DialogHeader>
-            <ResidentForm 
-              onSubmit={editingResident ? handleUpdateResident : handleAddResident}
-              initialData={editingResident}
-              isLoading={createResident.isPending || updateResident.isPending}
-            />
-          </DialogContent>
-        </Dialog>
+          </DialogTrigger> */}
+<Button
+  style={{ backgroundColor: COLORS.primary }}
+  onClick={() => {
+    console.log("Add Resident clicked");
+    setEditingResident(null);
+    setDialogOpen(true);
+  }}
+>
+  <Plus className="h-4 w-4 mr-2" />
+  Add Resident
+</Button>
+
+<Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+  <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+    <DialogHeader>
+      <DialogTitle>
+        {editingResident ? 'Edit Resident' : 'Add New Resident'}
+      </DialogTitle>
+      <DialogDescription>
+        {editingResident ? 'Update resident information' : 'Add a new resident to the society'}
+      </DialogDescription>
+    </DialogHeader>
+
+    <ResidentForm 
+      onSubmit={editingResident ? handleUpdateResident : handleAddResident}
+      initialData={editingResident}
+      isLoading={createResident.isPending || updateResident.isPending}
+    />
+  </DialogContent>
+</Dialog>
       </div>
 
       <Card>
