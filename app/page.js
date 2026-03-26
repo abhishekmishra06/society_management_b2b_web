@@ -22,6 +22,7 @@ export default function HomePage() {
         <Loader2 className="h-12 w-12 animate-spin mx-auto" style={{ color: '#694cd0' }} />
         <p className="mt-4 text-muted-foreground">Loading...</p>
       </div>
-    </div>
+    </div> 
   );
 }
+

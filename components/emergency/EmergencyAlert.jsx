@@ -38,6 +38,8 @@ export function triggerTestEmergency(type = 'security') {
   }
 }
 
+
+
 export default function EmergencyAlert() {
   const [activeEmergencies, setActiveEmergencies] = useState([]);
   const audioIntervalRef = useRef(null);
@@ -113,7 +115,7 @@ export default function EmergencyAlert() {
     }
     // Close audio context
     if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-      try { audioContextRef.current.close(); } catch {}
+      try { audioContextRef.current.close(); } catch { }
       audioContextRef.current = null;
     }
   }, []);
@@ -143,8 +145,7 @@ export default function EmergencyAlert() {
             <div className="flex items-start gap-3">
               <div
                 className="p-2 rounded-full pulse-ring"
-                style={{ backgroundColor: type.color }}
-              >
+                style={{ backgroundColor: type.color }}>
                 <Icon className="h-6 w-6 text-white" />
               </div>
 

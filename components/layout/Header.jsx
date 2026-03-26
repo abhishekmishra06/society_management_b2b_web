@@ -94,7 +94,6 @@ useEffect(() => {
         </div>
 
        <div className="flex items-center gap-4">
-
       <div className="flex flex-col leading-tight">
         
         {/* Greeting */}
@@ -111,7 +110,6 @@ useEffect(() => {
             day: 'numeric'
           })}
         </span>
-
       </div>
 
     </div>
